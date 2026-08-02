@@ -18,7 +18,6 @@ import newsRoutes from "./routes/newsRoutes";
 import opportunityRoutes from "./routes/opportunityRoutes";
 import uploadRoutes from "./routes/uploadRoutes";
 
-import { apiLimiter } from "./middleware/rateLimiter";
 import { handleUploadError } from "./middleware/upload";
 
 // Load environment variables
@@ -27,7 +26,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ============ CORS CONFIGURATION - MUST BE FIRST ============
+// Trust proxy for Render
+if (process.env.NODE_ENV === "production") {
+	app.set("trust proxy", 1);
+}
+
+// CORS configuration
 const allowedOrigins = [
 	"https://mtiicadmin.devclinton.org",
 	"https://ministry-of-trade-ekiti.onrender.com",
@@ -35,19 +39,15 @@ const allowedOrigins = [
 	"http://localhost:3001",
 ];
 
-// CORS options
 const corsOptions = {
 	origin: function (
 		origin: string | undefined,
 		callback: (err: Error | null, allow?: boolean) => void,
 	) {
-		// Allow requests with no origin (like mobile apps or curl requests)
 		if (!origin) return callback(null, true);
-
 		if (allowedOrigins.indexOf(origin) !== -1) {
 			callback(null, true);
 		} else {
-			console.log("Blocked origin:", origin); // Debug log
 			callback(new Error(`Origin ${origin} not allowed by CORS`));
 		}
 	},
@@ -59,21 +59,14 @@ const corsOptions = {
 		"X-Requested-With",
 		"Accept",
 		"Origin",
-		"Access-Control-Allow-Origin",
-		"Access-Control-Allow-Headers",
-		"Access-Control-Allow-Methods",
 	],
-	exposedHeaders: ["Content-Length", "X-Requested-With"],
-	optionsSuccessStatus: 200, // For legacy browser support
 };
 
 // Apply CORS middleware FIRST
 app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly
 app.options("*", cors(corsOptions));
 
-// ============ OTHER MIDDLEWARE ============
+// Other middleware
 app.use(
 	helmet({
 		crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -90,10 +83,7 @@ app.use(
 	}),
 );
 
-// Global rate limiter
-app.use("/api", apiLimiter);
-
-// ============ ROUTES ============
+// ============ ROUTES (No rate limiting) ============
 app.use("/api/auth", authRoutes);
 app.use("/api/opportunities", opportunityRoutes);
 app.use("/api/news", newsRoutes);
