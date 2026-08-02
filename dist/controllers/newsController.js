@@ -3,14 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteNews = exports.updateNews = exports.createNews = exports.getNewsBySlug = exports.getNews = void 0;
+exports.deleteNews = exports.updateNews = exports.createNews = exports.getNewsById = exports.getNewsBySlug = exports.getNews = void 0;
 const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
 const News_1 = __importDefault(require("../models/News"));
 const cloudinaryUpload_1 = require("../utils/cloudinaryUpload");
 const logger_1 = __importDefault(require("../utils/logger"));
 const getNews = async (req, res) => {
     try {
-        const { limit, featured, isPublished, category } = req.query;
+        const { limit, featured, isPublished, category, search } = req.query;
         const query = {};
         if (isPublished !== undefined) {
             query.isPublished = isPublished === "true";
@@ -20,6 +20,13 @@ const getNews = async (req, res) => {
         }
         if (category) {
             query.category = category;
+        }
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } },
+                { category: { $regex: search, $options: "i" } },
+            ];
         }
         const news = await News_1.default.find(query)
             .sort({ date: -1, createdAt: -1 })
@@ -66,11 +73,43 @@ const getNewsBySlug = async (req, res) => {
     }
 };
 exports.getNewsBySlug = getNewsBySlug;
+const getNewsById = async (req, res) => {
+    try {
+        const news = await News_1.default.findById(req.params.id);
+        if (!news) {
+            res.status(404).json({
+                success: false,
+                message: "News not found.",
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            data: news,
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Get news by id error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch news.",
+        });
+    }
+};
+exports.getNewsById = getNewsById;
 const createNews = async (req, res) => {
     try {
         const { category, date, title, description, content, isPublished, featured, } = req.body;
+        // Validate required fields
+        if (!title || !category || !description || !content) {
+            res.status(400).json({
+                success: false,
+                message: "Please provide all required fields: title, category, description, content.",
+            });
+            return;
+        }
         // Upload image if provided
-        let imageUrl = "";
+        let imageUrl = "/images/placeholder.png";
         let imagePublicId = "";
         if (req.file) {
             const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, "news", `news_${Date.now()}`);
@@ -82,17 +121,26 @@ const createNews = async (req, res) => {
             .toLowerCase()
             .replace(/[^a-zA-Z0-9]+/g, "-")
             .replace(/^-+|-+$/g, "");
+        // Check if slug already exists
+        const existingNews = await News_1.default.findOne({ slug });
+        if (existingNews) {
+            res.status(400).json({
+                success: false,
+                message: "A news article with this title already exists.",
+            });
+            return;
+        }
         const news = await News_1.default.create({
             category,
             date: date || new Date(),
             title,
             description,
             content,
-            image: imageUrl || "/images/placeholder.png",
-            imagePublicId: imagePublicId || "",
+            image: imageUrl,
+            imagePublicId: imagePublicId,
             slug,
-            isPublished: isPublished !== undefined ? isPublished : true,
-            featured: featured || false,
+            isPublished: isPublished === "true" || isPublished === true,
+            featured: featured === "true" || featured === true,
         });
         // Log activity
         await ActivityLog_1.default.create({
@@ -101,7 +149,7 @@ const createNews = async (req, res) => {
             action: "CREATE",
             resource: "NEWS",
             resourceId: news._id.toString(),
-            details: { title: news.title },
+            details: { title: news.title, slug: news.slug },
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
         });
@@ -134,7 +182,12 @@ const updateNews = async (req, res) => {
         // Upload new image if provided and delete old one
         if (req.file) {
             if (news.imagePublicId) {
-                await (0, cloudinaryUpload_1.deleteFromCloudinary)(news.imagePublicId);
+                try {
+                    await (0, cloudinaryUpload_1.deleteFromCloudinary)(news.imagePublicId);
+                }
+                catch (error) {
+                    logger_1.default.warn("Failed to delete old image:", error);
+                }
             }
             const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, "news", `news_${Date.now()}`);
             news.image = uploadResult.secure_url;
@@ -148,19 +201,34 @@ const updateNews = async (req, res) => {
         if (title) {
             news.title = title;
             // Update slug if title changes
-            news.slug = title
+            const newSlug = title
                 .toLowerCase()
                 .replace(/[^a-zA-Z0-9]+/g, "-")
                 .replace(/^-+|-+$/g, "");
+            // Check if new slug conflicts with another article
+            if (newSlug !== news.slug) {
+                const existingNews = await News_1.default.findOne({
+                    slug: newSlug,
+                    _id: { $ne: news._id },
+                });
+                if (existingNews) {
+                    res.status(400).json({
+                        success: false,
+                        message: "Another news article with this title already exists.",
+                    });
+                    return;
+                }
+                news.slug = newSlug;
+            }
         }
         if (description)
             news.description = description;
         if (content)
             news.content = content;
         if (isPublished !== undefined)
-            news.isPublished = isPublished;
+            news.isPublished = isPublished === "true" || isPublished === true;
         if (featured !== undefined)
-            news.featured = featured;
+            news.featured = featured === "true" || featured === true;
         await news.save();
         // Log activity
         await ActivityLog_1.default.create({
@@ -169,7 +237,7 @@ const updateNews = async (req, res) => {
             action: "UPDATE",
             resource: "NEWS",
             resourceId: news._id.toString(),
-            details: { title: news.title },
+            details: { title: news.title, slug: news.slug },
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
         });
@@ -200,7 +268,12 @@ const deleteNews = async (req, res) => {
         }
         // Delete image from Cloudinary
         if (news.imagePublicId) {
-            await (0, cloudinaryUpload_1.deleteFromCloudinary)(news.imagePublicId);
+            try {
+                await (0, cloudinaryUpload_1.deleteFromCloudinary)(news.imagePublicId);
+            }
+            catch (error) {
+                logger_1.default.warn("Failed to delete image from Cloudinary:", error);
+            }
         }
         await news.deleteOne();
         // Log activity
@@ -210,7 +283,7 @@ const deleteNews = async (req, res) => {
             action: "DELETE",
             resource: "NEWS",
             resourceId: req.params.id,
-            details: { title: news.title },
+            details: { title: news.title, slug: news.slug },
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
         });

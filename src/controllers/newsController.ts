@@ -11,7 +11,7 @@ import logger from "../utils/logger";
 
 export const getNews = async (req: Request, res: Response): Promise<void> => {
 	try {
-		const { limit, featured, isPublished, category } = req.query;
+		const { limit, featured, isPublished, category, search } = req.query;
 
 		const query: any = {};
 		if (isPublished !== undefined) {
@@ -22,6 +22,13 @@ export const getNews = async (req: Request, res: Response): Promise<void> => {
 		}
 		if (category) {
 			query.category = category;
+		}
+		if (search) {
+			query.$or = [
+				{ title: { $regex: search, $options: "i" } },
+				{ description: { $regex: search, $options: "i" } },
+				{ category: { $regex: search, $options: "i" } },
+			];
 		}
 
 		const news = await News.find(query)
@@ -73,6 +80,33 @@ export const getNewsBySlug = async (
 	}
 };
 
+export const getNewsById = async (
+	req: Request,
+	res: Response,
+): Promise<void> => {
+	try {
+		const news = await News.findById(req.params.id);
+		if (!news) {
+			res.status(404).json({
+				success: false,
+				message: "News not found.",
+			});
+			return;
+		}
+
+		res.status(200).json({
+			success: true,
+			data: news,
+		});
+	} catch (error) {
+		logger.error("Get news by id error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch news.",
+		});
+	}
+};
+
 export const createNews = async (
 	req: AuthRequest,
 	res: Response,
@@ -88,8 +122,18 @@ export const createNews = async (
 			featured,
 		} = req.body;
 
+		// Validate required fields
+		if (!title || !category || !description || !content) {
+			res.status(400).json({
+				success: false,
+				message:
+					"Please provide all required fields: title, category, description, content.",
+			});
+			return;
+		}
+
 		// Upload image if provided
-		let imageUrl = "";
+		let imageUrl = "/images/placeholder.png";
 		let imagePublicId = "";
 		if (req.file) {
 			const uploadResult = await uploadToCloudinary(
@@ -107,17 +151,27 @@ export const createNews = async (
 			.replace(/[^a-zA-Z0-9]+/g, "-")
 			.replace(/^-+|-+$/g, "");
 
+		// Check if slug already exists
+		const existingNews = await News.findOne({ slug });
+		if (existingNews) {
+			res.status(400).json({
+				success: false,
+				message: "A news article with this title already exists.",
+			});
+			return;
+		}
+
 		const news = await News.create({
 			category,
 			date: date || new Date(),
 			title,
 			description,
 			content,
-			image: imageUrl || "/images/placeholder.png",
-			imagePublicId: imagePublicId || "",
+			image: imageUrl,
+			imagePublicId: imagePublicId,
 			slug,
-			isPublished: isPublished !== undefined ? isPublished : true,
-			featured: featured || false,
+			isPublished: isPublished === "true" || isPublished === true,
+			featured: featured === "true" || featured === true,
 		});
 
 		// Log activity
@@ -127,7 +181,7 @@ export const createNews = async (
 			action: "CREATE",
 			resource: "NEWS",
 			resourceId: news._id.toString(),
-			details: { title: news.title },
+			details: { title: news.title, slug: news.slug },
 			ipAddress: req.ip,
 			userAgent: req.headers["user-agent"],
 		});
@@ -173,7 +227,11 @@ export const updateNews = async (
 		// Upload new image if provided and delete old one
 		if (req.file) {
 			if (news.imagePublicId) {
-				await deleteFromCloudinary(news.imagePublicId);
+				try {
+					await deleteFromCloudinary(news.imagePublicId);
+				} catch (error) {
+					logger.warn("Failed to delete old image:", error);
+				}
 			}
 			const uploadResult = await uploadToCloudinary(
 				req.file.buffer,
@@ -190,15 +248,33 @@ export const updateNews = async (
 		if (title) {
 			news.title = title;
 			// Update slug if title changes
-			news.slug = title
+			const newSlug = title
 				.toLowerCase()
 				.replace(/[^a-zA-Z0-9]+/g, "-")
 				.replace(/^-+|-+$/g, "");
+
+			// Check if new slug conflicts with another article
+			if (newSlug !== news.slug) {
+				const existingNews = await News.findOne({
+					slug: newSlug,
+					_id: { $ne: news._id },
+				});
+				if (existingNews) {
+					res.status(400).json({
+						success: false,
+						message: "Another news article with this title already exists.",
+					});
+					return;
+				}
+				news.slug = newSlug;
+			}
 		}
 		if (description) news.description = description;
 		if (content) news.content = content;
-		if (isPublished !== undefined) news.isPublished = isPublished;
-		if (featured !== undefined) news.featured = featured;
+		if (isPublished !== undefined)
+			news.isPublished = isPublished === "true" || isPublished === true;
+		if (featured !== undefined)
+			news.featured = featured === "true" || featured === true;
 
 		await news.save();
 
@@ -209,7 +285,7 @@ export const updateNews = async (
 			action: "UPDATE",
 			resource: "NEWS",
 			resourceId: news._id.toString(),
-			details: { title: news.title },
+			details: { title: news.title, slug: news.slug },
 			ipAddress: req.ip,
 			userAgent: req.headers["user-agent"],
 		});
@@ -244,7 +320,11 @@ export const deleteNews = async (
 
 		// Delete image from Cloudinary
 		if (news.imagePublicId) {
-			await deleteFromCloudinary(news.imagePublicId);
+			try {
+				await deleteFromCloudinary(news.imagePublicId);
+			} catch (error) {
+				logger.warn("Failed to delete image from Cloudinary:", error);
+			}
 		}
 
 		await news.deleteOne();
@@ -256,7 +336,7 @@ export const deleteNews = async (
 			action: "DELETE",
 			resource: "NEWS",
 			resourceId: req.params.id,
-			details: { title: news.title },
+			details: { title: news.title, slug: news.slug },
 			ipAddress: req.ip,
 			userAgent: req.headers["user-agent"],
 		});
