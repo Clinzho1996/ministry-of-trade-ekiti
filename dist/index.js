@@ -19,7 +19,9 @@ const eventRoutes_1 = __importDefault(require("./routes/eventRoutes"));
 const galleryRoutes_1 = __importDefault(require("./routes/galleryRoutes"));
 const newsRoutes_1 = __importDefault(require("./routes/newsRoutes"));
 const opportunityRoutes_1 = __importDefault(require("./routes/opportunityRoutes"));
+const statsRoutes_1 = __importDefault(require("./routes/statsRoutes"));
 const uploadRoutes_1 = __importDefault(require("./routes/uploadRoutes"));
+const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const upload_1 = require("./middleware/upload");
 // Load environment variables
 dotenv_1.default.config();
@@ -81,6 +83,8 @@ app.use("/api/gallery", galleryRoutes_1.default);
 app.use("/api/contacts", contactRoutes_1.default);
 app.use("/api/businesses", businessRoutes_1.default);
 app.use("/api/upload", uploadRoutes_1.default);
+app.use("/api/users", userRoutes_1.default);
+app.use("/api/stats", statsRoutes_1.default);
 // Health check
 app.get("/health", (req, res) => {
     res.status(200).json({

@@ -16,7 +16,9 @@ import eventRoutes from "./routes/eventRoutes";
 import galleryRoutes from "./routes/galleryRoutes";
 import newsRoutes from "./routes/newsRoutes";
 import opportunityRoutes from "./routes/opportunityRoutes";
+import statsRoutes from "./routes/statsRoutes";
 import uploadRoutes from "./routes/uploadRoutes";
+import userRoutes from "./routes/userRoutes";
 
 import { handleUploadError } from "./middleware/upload";
 
@@ -94,6 +96,8 @@ app.use("/api/gallery", galleryRoutes);
 app.use("/api/contacts", contactRoutes);
 app.use("/api/businesses", businessRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/stats", statsRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
