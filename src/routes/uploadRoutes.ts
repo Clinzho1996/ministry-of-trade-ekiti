@@ -6,6 +6,11 @@ import { upload } from "../middleware/upload";
 
 const router = Router();
 
+// Add a test route to verify the router is working
+router.get("/test", (req, res) => {
+	res.json({ message: "Upload route is working!" });
+});
+
 // Upload image (admin/editor only)
 router.post(
 	"/",

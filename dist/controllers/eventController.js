@@ -4,8 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteEvent = exports.updateEvent = exports.createEvent = exports.getEventBySlug = exports.getEvents = void 0;
-const Event_1 = __importDefault(require("../models/Event"));
 const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
+const Event_1 = __importDefault(require("../models/Event"));
 const cloudinaryUpload_1 = require("../utils/cloudinaryUpload");
 const logger_1 = __importDefault(require("../utils/logger"));
 const getEvents = async (req, res) => {
@@ -13,13 +13,13 @@ const getEvents = async (req, res) => {
         const { limit, featured, isPublished, isPast, category } = req.query;
         const query = {};
         if (isPublished !== undefined) {
-            query.isPublished = isPublished === 'true';
+            query.isPublished = isPublished === "true";
         }
         if (featured !== undefined) {
-            query.featured = featured === 'true';
+            query.featured = featured === "true";
         }
         if (isPast !== undefined) {
-            query.isPast = isPast === 'true';
+            query.isPast = isPast === "true";
         }
         if (category) {
             query.category = category;
@@ -34,10 +34,10 @@ const getEvents = async (req, res) => {
         });
     }
     catch (error) {
-        logger_1.default.error('Get events error:', error);
+        logger_1.default.error("Get events error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch events.',
+            message: "Failed to fetch events.",
         });
     }
 };
@@ -48,7 +48,7 @@ const getEventBySlug = async (req, res) => {
         if (!event) {
             res.status(404).json({
                 success: false,
-                message: 'Event not found.',
+                message: "Event not found.",
             });
             return;
         }
@@ -58,10 +58,10 @@ const getEventBySlug = async (req, res) => {
         });
     }
     catch (error) {
-        logger_1.default.error('Get event by slug error:', error);
+        logger_1.default.error("Get event by slug error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch event.',
+            message: "Failed to fetch event.",
         });
     }
 };
@@ -70,18 +70,18 @@ const createEvent = async (req, res) => {
     try {
         const { category, date, location, title, description, content, isPublished, featured, capacity, } = req.body;
         // Upload image if provided
-        let imageUrl = '';
-        let imagePublicId = '';
+        let imageUrl = "";
+        let imagePublicId = "";
         if (req.file) {
-            const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, 'events', `event_${Date.now()}`);
+            const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, "events", `event_${Date.now()}`);
             imageUrl = uploadResult.secure_url;
             imagePublicId = uploadResult.public_id;
         }
         // Generate slug from title
         const slug = title
             .toLowerCase()
-            .replace(/[^a-zA-Z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '');
+            .replace(/[^a-zA-Z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
         const event = await Event_1.default.create({
             category,
             date: new Date(date),
@@ -89,8 +89,8 @@ const createEvent = async (req, res) => {
             title,
             description,
             content,
-            image: imageUrl || '/images/placeholder.png',
-            imagePublicId: imagePublicId || '',
+            image: imageUrl || "/images/placeholder.png",
+            imagePublicId: imagePublicId || "",
             slug,
             isPublished: isPublished !== undefined ? isPublished : true,
             featured: featured || false,
@@ -100,24 +100,24 @@ const createEvent = async (req, res) => {
         await ActivityLog_1.default.create({
             userId: req.userId,
             userEmail: req.user?.email,
-            action: 'CREATE',
-            resource: 'EVENT',
+            action: "CREATE",
+            resource: "EVENT",
             resourceId: event._id.toString(),
             details: { title: event.title },
             ipAddress: req.ip,
-            userAgent: req.headers['user-agent'],
+            userAgent: req.headers["user-agent"],
         });
         res.status(201).json({
             success: true,
-            message: 'Event created successfully.',
+            message: "Event created successfully.",
             data: event,
         });
     }
     catch (error) {
-        logger_1.default.error('Create event error:', error);
+        logger_1.default.error("Create event error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to create event.',
+            message: "Failed to create event.",
         });
     }
 };
@@ -128,7 +128,7 @@ const updateEvent = async (req, res) => {
         if (!event) {
             res.status(404).json({
                 success: false,
-                message: 'Event not found.',
+                message: "Event not found.",
             });
             return;
         }
@@ -138,7 +138,7 @@ const updateEvent = async (req, res) => {
             if (event.imagePublicId) {
                 await (0, cloudinaryUpload_1.deleteFromCloudinary)(event.imagePublicId);
             }
-            const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, 'events', `event_${Date.now()}`);
+            const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, "events", `event_${Date.now()}`);
             event.image = uploadResult.secure_url;
             event.imagePublicId = uploadResult.public_id;
         }
@@ -154,8 +154,8 @@ const updateEvent = async (req, res) => {
             // Update slug if title changes
             event.slug = title
                 .toLowerCase()
-                .replace(/[^a-zA-Z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
+                .replace(/[^a-zA-Z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, "");
         }
         if (description)
             event.description = description;
@@ -174,24 +174,24 @@ const updateEvent = async (req, res) => {
         await ActivityLog_1.default.create({
             userId: req.userId,
             userEmail: req.user?.email,
-            action: 'UPDATE',
-            resource: 'EVENT',
+            action: "UPDATE",
+            resource: "EVENT",
             resourceId: event._id.toString(),
             details: { title: event.title },
             ipAddress: req.ip,
-            userAgent: req.headers['user-agent'],
+            userAgent: req.headers["user-agent"],
         });
         res.status(200).json({
             success: true,
-            message: 'Event updated successfully.',
+            message: "Event updated successfully.",
             data: event,
         });
     }
     catch (error) {
-        logger_1.default.error('Update event error:', error);
+        logger_1.default.error("Update event error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to update event.',
+            message: "Failed to update event.",
         });
     }
 };
@@ -202,7 +202,7 @@ const deleteEvent = async (req, res) => {
         if (!event) {
             res.status(404).json({
                 success: false,
-                message: 'Event not found.',
+                message: "Event not found.",
             });
             return;
         }
@@ -215,23 +215,23 @@ const deleteEvent = async (req, res) => {
         await ActivityLog_1.default.create({
             userId: req.userId,
             userEmail: req.user?.email,
-            action: 'DELETE',
-            resource: 'EVENT',
+            action: "DELETE",
+            resource: "EVENT",
             resourceId: req.params.id,
             details: { title: event.title },
             ipAddress: req.ip,
-            userAgent: req.headers['user-agent'],
+            userAgent: req.headers["user-agent"],
         });
         res.status(200).json({
             success: true,
-            message: 'Event deleted successfully.',
+            message: "Event deleted successfully.",
         });
     }
     catch (error) {
-        logger_1.default.error('Delete event error:', error);
+        logger_1.default.error("Delete event error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to delete event.',
+            message: "Failed to delete event.",
         });
     }
 };

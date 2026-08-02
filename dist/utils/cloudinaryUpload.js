@@ -9,11 +9,11 @@ const uploadToCloudinary = (fileBuffer, folder, fileName) => {
         const uploadStream = cloudinary_1.v2.uploader.upload_stream({
             folder,
             public_id: fileName || undefined,
-            resource_type: 'auto',
-            allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'],
+            resource_type: "auto",
+            allowed_formats: ["jpg", "jpeg", "png", "gif", "webp", "svg"],
         }, (error, result) => {
             if (error || !result) {
-                reject(error || new Error('Upload failed'));
+                reject(error || new Error("Upload failed"));
             }
             else {
                 resolve({
@@ -21,7 +21,7 @@ const uploadToCloudinary = (fileBuffer, folder, fileName) => {
                     public_id: result.public_id,
                     width: result.width,
                     height: result.height,
-                    format: result.format || 'unknown',
+                    format: result.format || "unknown",
                 });
             }
         });

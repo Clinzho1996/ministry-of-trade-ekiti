@@ -67,6 +67,7 @@ const ActivityLogSchema = new mongoose_1.Schema({
             "GALLERY",
             "CONTACT",
             "BUSINESS",
+            "UPLOAD",
             "SETTINGS",
         ],
     },
