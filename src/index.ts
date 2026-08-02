@@ -16,6 +16,7 @@ import eventRoutes from "./routes/eventRoutes";
 import galleryRoutes from "./routes/galleryRoutes";
 import newsRoutes from "./routes/newsRoutes";
 import opportunityRoutes from "./routes/opportunityRoutes";
+import uploadRoutes from "./routes/uploadRoutes";
 
 import { apiLimiter } from "./middleware/rateLimiter";
 import { handleUploadError } from "./middleware/upload";
@@ -100,6 +101,7 @@ app.use("/api/events", eventRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/contacts", contactRoutes);
 app.use("/api/businesses", businessRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

@@ -46,6 +46,7 @@ const ActivityLogSchema = new Schema<IActivityLog>(
 				"GALLERY",
 				"CONTACT",
 				"BUSINESS",
+				"UPLOAD",
 				"SETTINGS",
 			],
 		},
