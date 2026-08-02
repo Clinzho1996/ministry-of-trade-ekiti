@@ -118,30 +118,36 @@ const updateOpportunity = async (req, res) => {
             return;
         }
         const { title, description, range, link, sector, sortOrder, isActive } = req.body;
-        // Upload new image if provided and delete old one
+        // Handle image upload
+        let imageUrl = opportunity.image; // Keep existing image by default
+        let imagePublicId = opportunity.imagePublicId;
         if (req.file) {
+            // Delete old image from Cloudinary if it exists and is not the default
             if (opportunity.imagePublicId) {
-                await (0, cloudinaryUpload_1.deleteFromCloudinary)(opportunity.imagePublicId);
+                try {
+                    await (0, cloudinaryUpload_1.deleteFromCloudinary)(opportunity.imagePublicId);
+                }
+                catch (error) {
+                    logger_1.default.warn("Failed to delete old image:", error);
+                }
             }
+            // Upload new image
             const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, "opportunities", `opportunity_${Date.now()}`);
-            opportunity.image = uploadResult.secure_url;
-            opportunity.imagePublicId = uploadResult.public_id;
+            imageUrl = uploadResult.secure_url;
+            imagePublicId = uploadResult.public_id;
         }
-        // Update fields
-        if (title)
-            opportunity.title = title;
-        if (description)
-            opportunity.description = description;
-        if (range)
-            opportunity.range = range;
-        if (link)
-            opportunity.link = link;
-        if (sector)
-            opportunity.sector = sector;
+        // Update fields - make sure to include the image
+        opportunity.title = title || opportunity.title;
+        opportunity.description = description || opportunity.description;
+        opportunity.range = range || opportunity.range;
+        opportunity.link = link || opportunity.link;
+        opportunity.sector = sector || opportunity.sector;
         if (sortOrder !== undefined)
             opportunity.sortOrder = sortOrder;
         if (isActive !== undefined)
             opportunity.isActive = isActive;
+        opportunity.image = imageUrl; // Always set the image
+        opportunity.imagePublicId = imagePublicId;
         await opportunity.save();
         // Log activity
         await ActivityLog_1.default.create({
