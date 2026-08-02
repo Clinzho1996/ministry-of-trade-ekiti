@@ -34,6 +34,7 @@ if (process.env.NODE_ENV === "production") {
 // CORS configuration
 const allowedOrigins = [
     "https://mtiicadmin.devclinton.org",
+    "https://mtiic.devclinton.org",
     "https://ministry-of-trade-ekiti.onrender.com",
     "http://localhost:3000",
     "http://localhost:3001",
