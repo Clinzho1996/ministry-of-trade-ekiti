@@ -79,3 +79,7 @@
 {"level":"info","message":"Cloudinary configured successfully","service":"ekiti-investment-api","timestamp":"2026-08-02 06:38:36"}
 {"level":"info","message":"Server running on port 5000","service":"ekiti-investment-api","timestamp":"2026-08-02 06:38:36"}
 {"level":"info","message":"Health check: http://localhost:5000/health","service":"ekiti-investment-api","timestamp":"2026-08-02 06:38:36"}
+{"level":"info","message":"MongoDB connected successfully","service":"ekiti-investment-api","timestamp":"2026-08-02 08:02:11"}
+{"level":"info","message":"Cloudinary configured successfully","service":"ekiti-investment-api","timestamp":"2026-08-02 08:02:11"}
+{"level":"info","message":"Server running on port 5000","service":"ekiti-investment-api","timestamp":"2026-08-02 08:02:11"}
+{"level":"info","message":"Health check: http://localhost:5000/health","service":"ekiti-investment-api","timestamp":"2026-08-02 08:02:11"}

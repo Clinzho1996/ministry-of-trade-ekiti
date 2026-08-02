@@ -64,7 +64,9 @@ const corsOptions = {
 
 // Apply CORS middleware FIRST
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+
+// REMOVE this line - it's causing the error:
+// app.options("*", cors(corsOptions));
 
 // Other middleware
 app.use(

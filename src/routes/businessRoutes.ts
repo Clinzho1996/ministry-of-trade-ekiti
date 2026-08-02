@@ -12,16 +12,15 @@ import {
 	uploadBusinessImages,
 } from "../controllers/businessController";
 import { authenticate, authorize } from "../middleware/auth";
-import { apiLimiter } from "../middleware/rateLimiter";
 import { upload } from "../middleware/upload";
 
 const router = Router();
 
-// Public routes
-router.get("/", apiLimiter, getBusinesses);
-router.get("/categories", apiLimiter, getBusinessCategories);
-router.get("/slug/:slug", apiLimiter, getBusinessBySlug);
-router.get("/:id", apiLimiter, getBusiness);
+// Public rou
+router.get("/", getBusinesses);
+router.get("/categories", getBusinessCategories);
+router.get("/slug/:slug", getBusinessBySlug);
+router.get("/:id", getBusiness);
 
 // Admin routes
 router.post(

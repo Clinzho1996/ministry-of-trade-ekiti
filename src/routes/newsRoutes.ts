@@ -9,14 +9,13 @@ import {
 } from '../controllers/newsController';
 import { authenticate, authorize } from '../middleware/auth';
 import { upload } from '../middleware/upload';
-import { apiLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
 // Public routes
-router.get('/', apiLimiter, getNews);
-router.get('/slug/:slug', apiLimiter, getNewsBySlug);
-router.get('/:id', apiLimiter, getNews); // Fallback by ID
+router.get('/', getNews);
+router.get('/slug/:slug', getNewsBySlug);
+router.get('/:id', getNews); // Fallback by ID
 
 // Admin routes
 router.post(
