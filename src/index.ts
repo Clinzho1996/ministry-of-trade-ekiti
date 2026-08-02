@@ -1,5 +1,4 @@
 // src/index.ts
-import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import helmet from "helmet";
@@ -19,21 +18,26 @@ import opportunityRoutes from "./routes/opportunityRoutes";
 
 import { apiLimiter } from "./middleware/rateLimiter";
 import { handleUploadError } from "./middleware/upload";
+// src/index.ts
+import cors from "cors";
 
 // Load environment variables
 dotenv.config();
+
+// Allow multiple origins
+const allowedOrigins = [
+	"https://mtiicadmin.devclinton.org",
+	"https://ministry-of-trade-ekiti.onrender.com",
+	"http://localhost:3000",
+	"http://localhost:3001",
+];
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet());
-app.use(
-	cors({
-		origin: ["http://localhost:3000", "http://localhost:3001"],
-		credentials: true,
-	}),
-);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
@@ -41,6 +45,24 @@ app.use(
 		stream: {
 			write: (message: string) => logger.info(message.trim()),
 		},
+	}),
+);
+
+app.use(
+	cors({
+		origin: function (origin, callback) {
+			// Allow requests with no origin (like mobile apps or curl requests)
+			if (!origin) return callback(null, true);
+
+			if (allowedOrigins.indexOf(origin) !== -1) {
+				callback(null, true);
+			} else {
+				callback(new Error("Not allowed by CORS"));
+			}
+		},
+		credentials: true,
+		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 	}),
 );
 
