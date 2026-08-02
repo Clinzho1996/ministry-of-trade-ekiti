@@ -1,4 +1,5 @@
 // src/index.ts
+import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import helmet from "helmet";
@@ -18,13 +19,14 @@ import opportunityRoutes from "./routes/opportunityRoutes";
 
 import { apiLimiter } from "./middleware/rateLimiter";
 import { handleUploadError } from "./middleware/upload";
-// src/index.ts
-import cors from "cors";
 
 // Load environment variables
 dotenv.config();
 
-// Allow multiple origins
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// ============ CORS CONFIGURATION - MUST BE FIRST ============
 const allowedOrigins = [
 	"https://mtiicadmin.devclinton.org",
 	"https://ministry-of-trade-ekiti.onrender.com",
@@ -32,11 +34,50 @@ const allowedOrigins = [
 	"http://localhost:3001",
 ];
 
-const app = express();
-const PORT = process.env.PORT || 5000;
+// CORS options
+const corsOptions = {
+	origin: function (
+		origin: string | undefined,
+		callback: (err: Error | null, allow?: boolean) => void,
+	) {
+		// Allow requests with no origin (like mobile apps or curl requests)
+		if (!origin) return callback(null, true);
 
-// Middleware
-app.use(helmet());
+		if (allowedOrigins.indexOf(origin) !== -1) {
+			callback(null, true);
+		} else {
+			console.log("Blocked origin:", origin); // Debug log
+			callback(new Error(`Origin ${origin} not allowed by CORS`));
+		}
+	},
+	credentials: true,
+	methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+	allowedHeaders: [
+		"Content-Type",
+		"Authorization",
+		"X-Requested-With",
+		"Accept",
+		"Origin",
+		"Access-Control-Allow-Origin",
+		"Access-Control-Allow-Headers",
+		"Access-Control-Allow-Methods",
+	],
+	exposedHeaders: ["Content-Length", "X-Requested-With"],
+	optionsSuccessStatus: 200, // For legacy browser support
+};
+
+// Apply CORS middleware FIRST
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options("*", cors(corsOptions));
+
+// ============ OTHER MIDDLEWARE ============
+app.use(
+	helmet({
+		crossOriginResourcePolicy: { policy: "cross-origin" },
+	}),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -48,28 +89,10 @@ app.use(
 	}),
 );
 
-app.use(
-	cors({
-		origin: function (origin, callback) {
-			// Allow requests with no origin (like mobile apps or curl requests)
-			if (!origin) return callback(null, true);
-
-			if (allowedOrigins.indexOf(origin) !== -1) {
-				callback(null, true);
-			} else {
-				callback(new Error("Not allowed by CORS"));
-			}
-		},
-		credentials: true,
-		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-		allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-	}),
-);
-
 // Global rate limiter
 app.use("/api", apiLimiter);
 
-// Routes
+// ============ ROUTES ============
 app.use("/api/auth", authRoutes);
 app.use("/api/opportunities", opportunityRoutes);
 app.use("/api/news", newsRoutes);
