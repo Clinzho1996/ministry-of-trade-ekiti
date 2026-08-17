@@ -12,6 +12,7 @@ const morgan_1 = __importDefault(require("morgan"));
 const cloudinary_1 = require("./config/cloudinary");
 const database_1 = require("./config/database");
 const logger_1 = __importDefault(require("./utils/logger"));
+const activityLogRoutes_1 = __importDefault(require("./routes/activityLogRoutes"));
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const businessRoutes_1 = __importDefault(require("./routes/businessRoutes"));
 const contactRoutes_1 = __importDefault(require("./routes/contactRoutes"));
@@ -86,6 +87,7 @@ app.use("/api/businesses", businessRoutes_1.default);
 app.use("/api/upload", uploadRoutes_1.default);
 app.use("/api/users", userRoutes_1.default);
 app.use("/api/stats", statsRoutes_1.default);
+app.use("/api/activity-logs", activityLogRoutes_1.default);
 // Health check
 app.get("/health", (req, res) => {
     res.status(200).json({

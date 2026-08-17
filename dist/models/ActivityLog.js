@@ -91,5 +91,10 @@ const ActivityLogSchema = new mongoose_1.Schema({
 }, {
     timestamps: true,
 });
+// Index for faster queries
+ActivityLogSchema.index({ timestamp: -1 });
+ActivityLogSchema.index({ userId: 1 });
+ActivityLogSchema.index({ action: 1 });
+ActivityLogSchema.index({ resource: 1 });
 exports.default = mongoose_1.default.model("ActivityLog", ActivityLogSchema);
 //# sourceMappingURL=ActivityLog.js.map
