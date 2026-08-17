@@ -9,6 +9,7 @@ import { configureCloudinary } from "./config/cloudinary";
 import { connectDatabase } from "./config/database";
 import logger from "./utils/logger";
 
+import activityLogRoutes from "./routes/activityLogRoutes";
 import authRoutes from "./routes/authRoutes";
 import businessRoutes from "./routes/businessRoutes";
 import contactRoutes from "./routes/contactRoutes";
@@ -99,6 +100,7 @@ app.use("/api/businesses", businessRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/activity-logs", activityLogRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

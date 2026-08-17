@@ -73,4 +73,10 @@ const ActivityLogSchema = new Schema<IActivityLog>(
 	},
 );
 
+// Index for faster queries
+ActivityLogSchema.index({ timestamp: -1 });
+ActivityLogSchema.index({ userId: 1 });
+ActivityLogSchema.index({ action: 1 });
+ActivityLogSchema.index({ resource: 1 });
+
 export default mongoose.model<IActivityLog>("ActivityLog", ActivityLogSchema);
