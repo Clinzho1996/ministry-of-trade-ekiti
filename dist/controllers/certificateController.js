@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.downloadCertificate = exports.revokeCertificate = exports.generateCertificate = exports.getUserCertificates = exports.getCertificateById = exports.getAllCertificates = void 0;
+exports.revokeCertificate = exports.generateCertificate = exports.getUserCertificates = exports.downloadCertificate = exports.getCertificateById = exports.getAllCertificates = void 0;
 const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
 const Certificate_1 = __importDefault(require("../models/Certificate"));
 const Course_1 = __importDefault(require("../models/Course"));
@@ -50,6 +50,8 @@ const getAllCertificates = async (req, res) => {
     }
 };
 exports.getAllCertificates = getAllCertificates;
+// src/controllers/certificateController.ts
+// Get certificate by ID - Allow users to view their own
 const getCertificateById = async (req, res) => {
     try {
         const certificate = await Certificate_1.default.findById(req.params.id);
@@ -57,6 +59,17 @@ const getCertificateById = async (req, res) => {
             res.status(404).json({
                 success: false,
                 message: "Certificate not found.",
+            });
+            return;
+        }
+        // Check if user owns this certificate or is admin
+        const isOwner = certificate.userId === req.userId ||
+            certificate.userEmail === req.user?.email;
+        const isAdmin = req.user?.role === "admin" || req.user?.role === "editor";
+        if (!isOwner && !isAdmin) {
+            res.status(403).json({
+                success: false,
+                message: "You do not have permission to view this certificate.",
             });
             return;
         }
@@ -74,7 +87,45 @@ const getCertificateById = async (req, res) => {
     }
 };
 exports.getCertificateById = getCertificateById;
-// Get certificates for authenticated user
+// Download certificate - Allow users to download their own
+const downloadCertificate = async (req, res) => {
+    try {
+        const certificate = await Certificate_1.default.findById(req.params.id);
+        if (!certificate) {
+            res.status(404).json({
+                success: false,
+                message: "Certificate not found.",
+            });
+            return;
+        }
+        // Check if user owns this certificate or is admin
+        const isOwner = certificate.userId === req.userId ||
+            certificate.userEmail === req.user?.email;
+        const isAdmin = req.user?.role === "admin" || req.user?.role === "editor";
+        if (!isOwner && !isAdmin) {
+            res.status(403).json({
+                success: false,
+                message: "You do not have permission to download this certificate.",
+            });
+            return;
+        }
+        // In production, generate a PDF here
+        // For now, return the certificate data
+        res.status(200).json({
+            success: true,
+            data: certificate,
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Download certificate error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to download certificate.",
+        });
+    }
+};
+exports.downloadCertificate = downloadCertificate;
+// Get user certificates - Already public for authenticated users
 const getUserCertificates = async (req, res) => {
     try {
         const userId = req.userId;
@@ -219,30 +270,4 @@ const revokeCertificate = async (req, res) => {
     }
 };
 exports.revokeCertificate = revokeCertificate;
-const downloadCertificate = async (req, res) => {
-    try {
-        const certificate = await Certificate_1.default.findById(req.params.id);
-        if (!certificate) {
-            res.status(404).json({
-                success: false,
-                message: "Certificate not found.",
-            });
-            return;
-        }
-        // In production, generate a PDF here
-        // For now, return the certificate data
-        res.status(200).json({
-            success: true,
-            data: certificate,
-        });
-    }
-    catch (error) {
-        logger_1.default.error("Download certificate error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to download certificate.",
-        });
-    }
-};
-exports.downloadCertificate = downloadCertificate;
 //# sourceMappingURL=certificateController.js.map

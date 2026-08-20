@@ -14,15 +14,11 @@ const router = Router();
 
 // User routes - accessible to authenticated users (must be BEFORE /:id)
 router.get("/user", authenticate, getUserCertificates);
+router.get("/:id", authenticate, getCertificateById); // Users can view their own certificates
+router.get("/:id/download", authenticate, downloadCertificate); // Users can download their own certificates
 
 // Admin routes
 router.get("/", authenticate, authorize("admin", "editor"), getAllCertificates);
-router.get(
-	"/:id",
-	authenticate,
-	authorize("admin", "editor"),
-	getCertificateById,
-);
 router.post(
 	"/generate",
 	authenticate,
@@ -30,11 +26,5 @@ router.post(
 	generateCertificate,
 );
 router.put("/:id/revoke", authenticate, authorize("admin"), revokeCertificate);
-router.get(
-	"/:id/download",
-	authenticate,
-	authorize("admin", "editor"),
-	downloadCertificate,
-);
 
 export default router;

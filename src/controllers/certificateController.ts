@@ -52,6 +52,9 @@ export const getAllCertificates = async (
 	}
 };
 
+// src/controllers/certificateController.ts
+
+// Get certificate by ID - Allow users to view their own
 export const getCertificateById = async (
 	req: AuthRequest,
 	res: Response,
@@ -62,6 +65,20 @@ export const getCertificateById = async (
 			res.status(404).json({
 				success: false,
 				message: "Certificate not found.",
+			});
+			return;
+		}
+
+		// Check if user owns this certificate or is admin
+		const isOwner =
+			certificate.userId === req.userId ||
+			certificate.userEmail === req.user?.email;
+		const isAdmin = req.user?.role === "admin" || req.user?.role === "editor";
+
+		if (!isOwner && !isAdmin) {
+			res.status(403).json({
+				success: false,
+				message: "You do not have permission to view this certificate.",
 			});
 			return;
 		}
@@ -79,7 +96,51 @@ export const getCertificateById = async (
 	}
 };
 
-// Get certificates for authenticated user
+// Download certificate - Allow users to download their own
+export const downloadCertificate = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const certificate = await Certificate.findById(req.params.id);
+		if (!certificate) {
+			res.status(404).json({
+				success: false,
+				message: "Certificate not found.",
+			});
+			return;
+		}
+
+		// Check if user owns this certificate or is admin
+		const isOwner =
+			certificate.userId === req.userId ||
+			certificate.userEmail === req.user?.email;
+		const isAdmin = req.user?.role === "admin" || req.user?.role === "editor";
+
+		if (!isOwner && !isAdmin) {
+			res.status(403).json({
+				success: false,
+				message: "You do not have permission to download this certificate.",
+			});
+			return;
+		}
+
+		// In production, generate a PDF here
+		// For now, return the certificate data
+		res.status(200).json({
+			success: true,
+			data: certificate,
+		});
+	} catch (error) {
+		logger.error("Download certificate error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to download certificate.",
+		});
+	}
+};
+
+// Get user certificates - Already public for authenticated users
 export const getUserCertificates = async (
 	req: AuthRequest,
 	res: Response,
@@ -242,35 +303,6 @@ export const revokeCertificate = async (
 		res.status(500).json({
 			success: false,
 			message: "Failed to revoke certificate.",
-		});
-	}
-};
-
-export const downloadCertificate = async (
-	req: AuthRequest,
-	res: Response,
-): Promise<void> => {
-	try {
-		const certificate = await Certificate.findById(req.params.id);
-		if (!certificate) {
-			res.status(404).json({
-				success: false,
-				message: "Certificate not found.",
-			});
-			return;
-		}
-
-		// In production, generate a PDF here
-		// For now, return the certificate data
-		res.status(200).json({
-			success: true,
-			data: certificate,
-		});
-	} catch (error) {
-		logger.error("Download certificate error:", error);
-		res.status(500).json({
-			success: false,
-			message: "Failed to download certificate.",
 		});
 	}
 };
