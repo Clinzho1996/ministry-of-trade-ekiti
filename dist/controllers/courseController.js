@@ -10,6 +10,50 @@ const Course_1 = __importDefault(require("../models/Course"));
 const Enrollment_1 = __importDefault(require("../models/Enrollment"));
 const cloudinaryUpload_1 = require("../utils/cloudinaryUpload");
 const logger_1 = __importDefault(require("../utils/logger"));
+// Helper function to convert comma-separated string to array
+const parseStringToArray = (value) => {
+    if (!value)
+        return [];
+    if (Array.isArray(value))
+        return value;
+    if (typeof value === "string") {
+        // If it's a JSON string, parse it
+        if (value.startsWith("[")) {
+            try {
+                return JSON.parse(value);
+            }
+            catch {
+                return value
+                    .split(",")
+                    .map((item) => item.trim())
+                    .filter(Boolean);
+            }
+        }
+        // Otherwise split by comma
+        return value
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+    return [];
+};
+// Helper function to parse number
+const parseNumber = (value) => {
+    if (!value)
+        return 0;
+    if (typeof value === "number")
+        return value;
+    return parseInt(value) || 0;
+};
+// Helper function to parse boolean
+const parseBoolean = (value) => {
+    if (typeof value === "boolean")
+        return value;
+    if (typeof value === "string") {
+        return value === "true" || value === "1";
+    }
+    return Boolean(value);
+};
 // Get all courses
 const getCourses = async (req, res) => {
     try {
@@ -63,7 +107,6 @@ const getCourseBySlug = async (req, res) => {
             });
             return;
         }
-        // Increment views? Could add a views field if needed
         res.status(200).json({
             success: true,
             data: course,
@@ -95,6 +138,10 @@ const createCourse = async (req, res) => {
             .toLowerCase()
             .replace(/[^a-zA-Z0-9]+/g, "-")
             .replace(/^-+|-+$/g, "");
+        // Parse arrays from comma-separated strings
+        const parsedPrerequisites = parseStringToArray(prerequisites);
+        const parsedLearningObjectives = parseStringToArray(learningObjectives);
+        const parsedTags = parseStringToArray(tags);
         const course = await Course_1.default.create({
             title,
             description,
@@ -105,22 +152,20 @@ const createCourse = async (req, res) => {
             instructor,
             instructorBio,
             duration,
-            lessons: parseInt(lessons) || 0,
-            price: parseFloat(price) || 0,
-            isFree: isFree === "true" || isFree === true,
-            isPublished: isPublished === "true" || isPublished === true,
-            featured: featured === "true" || featured === true,
+            lessons: parseNumber(lessons),
+            price: parseNumber(price),
+            isFree: parseBoolean(isFree),
+            isPublished: parseBoolean(isPublished),
+            featured: parseBoolean(featured),
             slug,
             content,
-            prerequisites: prerequisites ? JSON.parse(prerequisites) : [],
-            learningObjectives: learningObjectives
-                ? JSON.parse(learningObjectives)
-                : [],
-            tags: tags ? JSON.parse(tags) : [],
+            prerequisites: parsedPrerequisites,
+            learningObjectives: parsedLearningObjectives,
+            tags: parsedTags,
             videoUrl,
             videoType: videoType || "youtube",
             externalUrl,
-            completionCertificate: completionCertificate === "true" || completionCertificate === true,
+            completionCertificate: parseBoolean(completionCertificate),
         });
         // Log activity
         await ActivityLog_1.default.create({
@@ -163,12 +208,21 @@ const updateCourse = async (req, res) => {
         // Upload new image if provided
         if (req.file) {
             if (course.imagePublicId) {
-                await (0, cloudinaryUpload_1.deleteFromCloudinary)(course.imagePublicId);
+                try {
+                    await (0, cloudinaryUpload_1.deleteFromCloudinary)(course.imagePublicId);
+                }
+                catch (error) {
+                    logger_1.default.warn("Failed to delete old image:", error);
+                }
             }
             const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, "courses", `course_${Date.now()}`);
             course.image = uploadResult.secure_url;
             course.imagePublicId = uploadResult.public_id;
         }
+        // Parse arrays from comma-separated strings
+        const parsedPrerequisites = parseStringToArray(prerequisites);
+        const parsedLearningObjectives = parseStringToArray(learningObjectives);
+        const parsedTags = parseStringToArray(tags);
         // Update fields
         if (title) {
             course.title = title;
@@ -185,37 +239,33 @@ const updateCourse = async (req, res) => {
             course.level = level;
         if (instructor)
             course.instructor = instructor;
-        if (instructorBio)
+        if (instructorBio !== undefined)
             course.instructorBio = instructorBio;
         if (duration)
             course.duration = duration;
         if (lessons !== undefined)
-            course.lessons = parseInt(lessons);
+            course.lessons = parseNumber(lessons);
         if (price !== undefined)
-            course.price = parseFloat(price);
+            course.price = parseNumber(price);
         if (isFree !== undefined)
-            course.isFree = isFree === "true" || isFree === true;
+            course.isFree = parseBoolean(isFree);
         if (isPublished !== undefined)
-            course.isPublished = isPublished === "true" || isPublished === true;
+            course.isPublished = parseBoolean(isPublished);
         if (featured !== undefined)
-            course.featured = featured === "true" || featured === true;
+            course.featured = parseBoolean(featured);
         if (content)
             course.content = content;
-        if (prerequisites)
-            course.prerequisites = JSON.parse(prerequisites);
-        if (learningObjectives)
-            course.learningObjectives = JSON.parse(learningObjectives);
-        if (tags)
-            course.tags = JSON.parse(tags);
-        if (videoUrl)
+        course.prerequisites = parsedPrerequisites;
+        course.learningObjectives = parsedLearningObjectives;
+        course.tags = parsedTags;
+        if (videoUrl !== undefined)
             course.videoUrl = videoUrl;
         if (videoType)
             course.videoType = videoType;
-        if (externalUrl)
+        if (externalUrl !== undefined)
             course.externalUrl = externalUrl;
         if (completionCertificate !== undefined)
-            course.completionCertificate =
-                completionCertificate === "true" || completionCertificate === true;
+            course.completionCertificate = parseBoolean(completionCertificate);
         await course.save();
         // Log activity
         await ActivityLog_1.default.create({
@@ -256,7 +306,12 @@ const deleteCourse = async (req, res) => {
         }
         // Delete image from Cloudinary
         if (course.imagePublicId) {
-            await (0, cloudinaryUpload_1.deleteFromCloudinary)(course.imagePublicId);
+            try {
+                await (0, cloudinaryUpload_1.deleteFromCloudinary)(course.imagePublicId);
+            }
+            catch (error) {
+                logger_1.default.warn("Failed to delete image from Cloudinary:", error);
+            }
         }
         // Delete all enrollments for this course
         await Enrollment_1.default.deleteMany({ courseId: course._id.toString() });
@@ -371,8 +426,6 @@ exports.updateProgress = updateProgress;
 const generateCertificate = async (enrollment, course) => {
     try {
         const certificateId = `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-        // In production, you would generate a PDF certificate here
-        // For now, we'll create a certificate record with a placeholder URL
         const certificate = await Certificate_1.default.create({
             userId: enrollment.userId,
             userEmail: enrollment.userEmail,
