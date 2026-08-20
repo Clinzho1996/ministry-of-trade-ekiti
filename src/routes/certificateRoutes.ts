@@ -5,11 +5,15 @@ import {
 	generateCertificate,
 	getAllCertificates,
 	getCertificateById,
+	getUserCertificates,
 	revokeCertificate,
 } from "../controllers/certificateController";
 import { authenticate, authorize } from "../middleware/auth";
 
 const router = Router();
+
+// User routes - accessible to authenticated users (must be BEFORE /:id)
+router.get("/user", authenticate, getUserCertificates);
 
 // Admin routes
 router.get("/", authenticate, authorize("admin", "editor"), getAllCertificates);

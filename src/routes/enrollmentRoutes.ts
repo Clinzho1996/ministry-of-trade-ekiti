@@ -12,6 +12,8 @@ import { authenticate, authorize } from "../middleware/auth";
 
 const router = Router();
 
+router.get("/user", authenticate, getUserEnrollments);
+
 // Admin routes
 router.get("/", authenticate, authorize("admin", "editor"), getAllEnrollments);
 router.get(
@@ -20,7 +22,7 @@ router.get(
 	authorize("admin", "editor"),
 	getEnrollmentStats,
 );
-router.get("/user", authenticate, getUserEnrollments); // Get user's own enrollments
+// Get user's own enrollments
 router.get(
 	"/:id",
 	authenticate,

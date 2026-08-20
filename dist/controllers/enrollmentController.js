@@ -4,10 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getEnrollmentStats = exports.deleteEnrollment = exports.updateEnrollmentStatus = exports.getUserEnrollments = exports.getEnrollmentById = exports.getAllEnrollments = void 0;
-const Enrollment_1 = __importDefault(require("../models/Enrollment"));
-const Course_1 = __importDefault(require("../models/Course"));
-const Certificate_1 = __importDefault(require("../models/Certificate"));
 const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
+const Certificate_1 = __importDefault(require("../models/Certificate"));
+const Course_1 = __importDefault(require("../models/Course"));
+const Enrollment_1 = __importDefault(require("../models/Enrollment"));
 const logger_1 = __importDefault(require("../utils/logger"));
 // Get all enrollments
 const getAllEnrollments = async (req, res) => {
@@ -22,8 +22,8 @@ const getAllEnrollments = async (req, res) => {
             query.status = status;
         if (search) {
             query.$or = [
-                { userEmail: { $regex: search, $options: 'i' } },
-                { userName: { $regex: search, $options: 'i' } },
+                { userEmail: { $regex: search, $options: "i" } },
+                { userName: { $regex: search, $options: "i" } },
             ];
         }
         const pageNum = parseInt(page) || 1;
@@ -31,10 +31,7 @@ const getAllEnrollments = async (req, res) => {
         const skip = (pageNum - 1) * limitNum;
         // Get course titles for each enrollment
         const [enrollments, total] = await Promise.all([
-            Enrollment_1.default.find(query)
-                .sort({ startedAt: -1 })
-                .skip(skip)
-                .limit(limitNum),
+            Enrollment_1.default.find(query).sort({ startedAt: -1 }).skip(skip).limit(limitNum),
             Enrollment_1.default.countDocuments(query),
         ]);
         // Populate course titles
@@ -42,8 +39,8 @@ const getAllEnrollments = async (req, res) => {
             const course = await Course_1.default.findById(enrollment.courseId);
             return {
                 ...enrollment.toObject(),
-                courseTitle: course?.title || 'Unknown Course',
-                userName: enrollment.userName || 'Unknown User',
+                courseTitle: course?.title || "Unknown Course",
+                userName: enrollment.userName || "Unknown User",
             };
         }));
         res.status(200).json({
@@ -56,10 +53,10 @@ const getAllEnrollments = async (req, res) => {
         });
     }
     catch (error) {
-        logger_1.default.error('Get all enrollments error:', error);
+        logger_1.default.error("Get all enrollments error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch enrollments.',
+            message: "Failed to fetch enrollments.",
         });
     }
 };
@@ -71,7 +68,7 @@ const getEnrollmentById = async (req, res) => {
         if (!enrollment) {
             res.status(404).json({
                 success: false,
-                message: 'Enrollment not found.',
+                message: "Enrollment not found.",
             });
             return;
         }
@@ -84,35 +81,43 @@ const getEnrollmentById = async (req, res) => {
             success: true,
             data: {
                 ...enrollment.toObject(),
-                courseTitle: course?.title || 'Unknown Course',
+                courseTitle: course?.title || "Unknown Course",
                 certificateId: certificate?.certificateId || null,
                 certificateIssued: !!certificate,
             },
         });
     }
     catch (error) {
-        logger_1.default.error('Get enrollment by id error:', error);
+        logger_1.default.error("Get enrollment by id error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch enrollment.',
+            message: "Failed to fetch enrollment.",
         });
     }
 };
 exports.getEnrollmentById = getEnrollmentById;
 // Get enrollments for a specific user
+// src/controllers/enrollmentController.ts
 const getUserEnrollments = async (req, res) => {
     try {
         const userId = req.userId;
-        const enrollments = await Enrollment_1.default.find({ userId })
-            .sort({ startedAt: -1 });
+        const userEmail = req.user?.email;
+        // Build query to find enrollments by userId or userEmail
+        const query = userId ? { userId } : { userEmail };
+        const enrollments = await Enrollment_1.default.find(query).sort({ startedAt: -1 });
         // Populate course details
         const enrichedEnrollments = await Promise.all(enrollments.map(async (enrollment) => {
             const course = await Course_1.default.findById(enrollment.courseId);
+            // Try to find the course by slug if not found by ID
+            let courseData = course;
+            if (!courseData && enrollment.courseId) {
+                courseData = await Course_1.default.findOne({ slug: enrollment.courseId });
+            }
             return {
                 ...enrollment.toObject(),
-                courseTitle: course?.title || 'Unknown Course',
-                courseImage: course?.image || null,
-                courseSlug: course?.slug || null,
+                courseTitle: courseData?.title || "Unknown Course",
+                courseImage: courseData?.image || null,
+                courseSlug: courseData?.slug || null,
             };
         }));
         res.status(200).json({
@@ -122,10 +127,10 @@ const getUserEnrollments = async (req, res) => {
         });
     }
     catch (error) {
-        logger_1.default.error('Get user enrollments error:', error);
+        logger_1.default.error("Get user enrollments error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch user enrollments.',
+            message: "Failed to fetch user enrollments.",
         });
     }
 };
@@ -139,13 +144,13 @@ const updateEnrollmentStatus = async (req, res) => {
         if (!enrollment) {
             res.status(404).json({
                 success: false,
-                message: 'Enrollment not found.',
+                message: "Enrollment not found.",
             });
             return;
         }
         if (status) {
             enrollment.status = status;
-            if (status === 'completed' && !enrollment.completedAt) {
+            if (status === "completed" && !enrollment.completedAt) {
                 enrollment.completedAt = new Date();
             }
         }
@@ -163,8 +168,8 @@ const updateEnrollmentStatus = async (req, res) => {
             }
         }
         // Auto-complete if progress reaches 100%
-        if (enrollment.progress === 100 && enrollment.status !== 'completed') {
-            enrollment.status = 'completed';
+        if (enrollment.progress === 100 && enrollment.status !== "completed") {
+            enrollment.status = "completed";
             enrollment.completedAt = new Date();
             // Generate certificate if course offers one
             const course = await Course_1.default.findById(enrollment.courseId);
@@ -173,7 +178,7 @@ const updateEnrollmentStatus = async (req, res) => {
                 await Certificate_1.default.create({
                     userId: enrollment.userId,
                     userEmail: enrollment.userEmail,
-                    userName: enrollment.userName || 'Student',
+                    userName: enrollment.userName || "Student",
                     courseId: course._id.toString(),
                     courseTitle: course.title,
                     certificateId,
@@ -191,28 +196,28 @@ const updateEnrollmentStatus = async (req, res) => {
         await ActivityLog_1.default.create({
             userId: req.userId,
             userEmail: req.user?.email,
-            action: 'UPDATE',
-            resource: 'ENROLLMENT',
+            action: "UPDATE",
+            resource: "ENROLLMENT",
             resourceId: enrollment._id.toString(),
             details: {
                 status: enrollment.status,
                 progress: enrollment.progress,
-                courseId: enrollment.courseId
+                courseId: enrollment.courseId,
             },
             ipAddress: req.ip,
-            userAgent: req.headers['user-agent'],
+            userAgent: req.headers["user-agent"],
         });
         res.status(200).json({
             success: true,
-            message: 'Enrollment updated successfully.',
+            message: "Enrollment updated successfully.",
             data: enrollment,
         });
     }
     catch (error) {
-        logger_1.default.error('Update enrollment status error:', error);
+        logger_1.default.error("Update enrollment status error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to update enrollment.',
+            message: "Failed to update enrollment.",
         });
     }
 };
@@ -224,7 +229,7 @@ const deleteEnrollment = async (req, res) => {
         if (!enrollment) {
             res.status(404).json({
                 success: false,
-                message: 'Enrollment not found.',
+                message: "Enrollment not found.",
             });
             return;
         }
@@ -239,23 +244,23 @@ const deleteEnrollment = async (req, res) => {
         await ActivityLog_1.default.create({
             userId: req.userId,
             userEmail: req.user?.email,
-            action: 'DELETE',
-            resource: 'ENROLLMENT',
+            action: "DELETE",
+            resource: "ENROLLMENT",
             resourceId: req.params.id,
             details: { courseId: enrollment.courseId },
             ipAddress: req.ip,
-            userAgent: req.headers['user-agent'],
+            userAgent: req.headers["user-agent"],
         });
         res.status(200).json({
             success: true,
-            message: 'Enrollment deleted successfully.',
+            message: "Enrollment deleted successfully.",
         });
     }
     catch (error) {
-        logger_1.default.error('Delete enrollment error:', error);
+        logger_1.default.error("Delete enrollment error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to delete enrollment.',
+            message: "Failed to delete enrollment.",
         });
     }
 };
@@ -265,14 +270,14 @@ const getEnrollmentStats = async (req, res) => {
     try {
         const [totalEnrollments, activeEnrollments, completedEnrollments] = await Promise.all([
             Enrollment_1.default.countDocuments(),
-            Enrollment_1.default.countDocuments({ status: 'active' }),
-            Enrollment_1.default.countDocuments({ status: 'completed' }),
+            Enrollment_1.default.countDocuments({ status: "active" }),
+            Enrollment_1.default.countDocuments({ status: "completed" }),
         ]);
         // Get enrollments by course
         const courseStats = await Enrollment_1.default.aggregate([
             {
                 $group: {
-                    _id: '$courseId',
+                    _id: "$courseId",
                     count: { $sum: 1 },
                 },
             },
@@ -288,7 +293,7 @@ const getEnrollmentStats = async (req, res) => {
             const course = await Course_1.default.findById(stat._id);
             return {
                 courseId: stat._id,
-                courseTitle: course?.title || 'Unknown Course',
+                courseTitle: course?.title || "Unknown Course",
                 count: stat.count,
             };
         }));
@@ -304,15 +309,15 @@ const getEnrollmentStats = async (req, res) => {
             {
                 $group: {
                     _id: {
-                        year: { $year: '$startedAt' },
-                        month: { $month: '$startedAt' },
-                        day: { $dayOfMonth: '$startedAt' },
+                        year: { $year: "$startedAt" },
+                        month: { $month: "$startedAt" },
+                        day: { $dayOfMonth: "$startedAt" },
                     },
                     count: { $sum: 1 },
                 },
             },
             {
-                $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 },
+                $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 },
             },
         ]);
         res.status(200).json({
@@ -321,17 +326,19 @@ const getEnrollmentStats = async (req, res) => {
                 total: totalEnrollments,
                 active: activeEnrollments,
                 completed: completedEnrollments,
-                completionRate: totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0,
+                completionRate: totalEnrollments > 0
+                    ? Math.round((completedEnrollments / totalEnrollments) * 100)
+                    : 0,
                 byCourse: courseStatsWithTitles,
                 dailyTrend,
             },
         });
     }
     catch (error) {
-        logger_1.default.error('Get enrollment stats error:', error);
+        logger_1.default.error("Get enrollment stats error:", error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch enrollment statistics.',
+            message: "Failed to fetch enrollment statistics.",
         });
     }
 };

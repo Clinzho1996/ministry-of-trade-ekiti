@@ -1,5 +1,5 @@
-import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
+import { Response } from "express";
+import { AuthRequest } from "../middleware/auth";
 export declare const getAllEnrollments: (req: AuthRequest, res: Response) => Promise<void>;
 export declare const getEnrollmentById: (req: AuthRequest, res: Response) => Promise<void>;
 export declare const getUserEnrollments: (req: AuthRequest, res: Response) => Promise<void>;

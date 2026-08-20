@@ -1,363 +1,396 @@
 // src/controllers/enrollmentController.ts
-import { Request, Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
-import Enrollment from '../models/Enrollment';
-import Course from '../models/Course';
-import Certificate from '../models/Certificate';
-import ActivityLog from '../models/ActivityLog';
-import logger from '../utils/logger';
+import { Response } from "express";
+import { AuthRequest } from "../middleware/auth";
+import ActivityLog from "../models/ActivityLog";
+import Certificate from "../models/Certificate";
+import Course from "../models/Course";
+import Enrollment from "../models/Enrollment";
+import logger from "../utils/logger";
 
 // Get all enrollments
-export const getAllEnrollments = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { limit, page, search, courseId, userId, status } = req.query;
+export const getAllEnrollments = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const { limit, page, search, courseId, userId, status } = req.query;
 
-    const query: any = {};
-    if (courseId) query.courseId = courseId;
-    if (userId) query.userId = userId;
-    if (status) query.status = status;
-    
-    if (search) {
-      query.$or = [
-        { userEmail: { $regex: search, $options: 'i' } },
-        { userName: { $regex: search, $options: 'i' } },
-      ];
-    }
+		const query: any = {};
+		if (courseId) query.courseId = courseId;
+		if (userId) query.userId = userId;
+		if (status) query.status = status;
 
-    const pageNum = parseInt(page as string) || 1;
-    const limitNum = parseInt(limit as string) || 20;
-    const skip = (pageNum - 1) * limitNum;
+		if (search) {
+			query.$or = [
+				{ userEmail: { $regex: search, $options: "i" } },
+				{ userName: { $regex: search, $options: "i" } },
+			];
+		}
 
-    // Get course titles for each enrollment
-    const [enrollments, total] = await Promise.all([
-      Enrollment.find(query)
-        .sort({ startedAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
-      Enrollment.countDocuments(query),
-    ]);
+		const pageNum = parseInt(page as string) || 1;
+		const limitNum = parseInt(limit as string) || 20;
+		const skip = (pageNum - 1) * limitNum;
 
-    // Populate course titles
-    const enrichedEnrollments = await Promise.all(
-      enrollments.map(async (enrollment) => {
-        const course = await Course.findById(enrollment.courseId);
-        return {
-          ...enrollment.toObject(),
-          courseTitle: course?.title || 'Unknown Course',
-          userName: enrollment.userName || 'Unknown User',
-        };
-      })
-    );
+		// Get course titles for each enrollment
+		const [enrollments, total] = await Promise.all([
+			Enrollment.find(query).sort({ startedAt: -1 }).skip(skip).limit(limitNum),
+			Enrollment.countDocuments(query),
+		]);
 
-    res.status(200).json({
-      success: true,
-      count: enrollments.length,
-      total,
-      page: pageNum,
-      totalPages: Math.ceil(total / limitNum),
-      data: enrichedEnrollments,
-    });
-  } catch (error) {
-    logger.error('Get all enrollments error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch enrollments.',
-    });
-  }
+		// Populate course titles
+		const enrichedEnrollments = await Promise.all(
+			enrollments.map(async (enrollment) => {
+				const course = await Course.findById(enrollment.courseId);
+				return {
+					...enrollment.toObject(),
+					courseTitle: course?.title || "Unknown Course",
+					userName: enrollment.userName || "Unknown User",
+				};
+			}),
+		);
+
+		res.status(200).json({
+			success: true,
+			count: enrollments.length,
+			total,
+			page: pageNum,
+			totalPages: Math.ceil(total / limitNum),
+			data: enrichedEnrollments,
+		});
+	} catch (error) {
+		logger.error("Get all enrollments error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch enrollments.",
+		});
+	}
 };
 
 // Get enrollment by ID
-export const getEnrollmentById = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const enrollment = await Enrollment.findById(req.params.id);
-    if (!enrollment) {
-      res.status(404).json({
-        success: false,
-        message: 'Enrollment not found.',
-      });
-      return;
-    }
+export const getEnrollmentById = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const enrollment = await Enrollment.findById(req.params.id);
+		if (!enrollment) {
+			res.status(404).json({
+				success: false,
+				message: "Enrollment not found.",
+			});
+			return;
+		}
 
-    const course = await Course.findById(enrollment.courseId);
-    const certificate = await Certificate.findOne({
-      userId: enrollment.userId,
-      courseId: enrollment.courseId,
-    });
+		const course = await Course.findById(enrollment.courseId);
+		const certificate = await Certificate.findOne({
+			userId: enrollment.userId,
+			courseId: enrollment.courseId,
+		});
 
-    res.status(200).json({
-      success: true,
-      data: {
-        ...enrollment.toObject(),
-        courseTitle: course?.title || 'Unknown Course',
-        certificateId: certificate?.certificateId || null,
-        certificateIssued: !!certificate,
-      },
-    });
-  } catch (error) {
-    logger.error('Get enrollment by id error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch enrollment.',
-    });
-  }
+		res.status(200).json({
+			success: true,
+			data: {
+				...enrollment.toObject(),
+				courseTitle: course?.title || "Unknown Course",
+				certificateId: certificate?.certificateId || null,
+				certificateIssued: !!certificate,
+			},
+		});
+	} catch (error) {
+		logger.error("Get enrollment by id error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch enrollment.",
+		});
+	}
 };
 
 // Get enrollments for a specific user
-export const getUserEnrollments = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.userId;
-    
-    const enrollments = await Enrollment.find({ userId })
-      .sort({ startedAt: -1 });
+// src/controllers/enrollmentController.ts
+export const getUserEnrollments = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const userId = req.userId;
+		const userEmail = req.user?.email;
 
-    // Populate course details
-    const enrichedEnrollments = await Promise.all(
-      enrollments.map(async (enrollment) => {
-        const course = await Course.findById(enrollment.courseId);
-        return {
-          ...enrollment.toObject(),
-          courseTitle: course?.title || 'Unknown Course',
-          courseImage: course?.image || null,
-          courseSlug: course?.slug || null,
-        };
-      })
-    );
+		// Build query to find enrollments by userId or userEmail
+		const query = userId ? { userId } : { userEmail };
 
-    res.status(200).json({
-      success: true,
-      count: enrollments.length,
-      data: enrichedEnrollments,
-    });
-  } catch (error) {
-    logger.error('Get user enrollments error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch user enrollments.',
-    });
-  }
+		const enrollments = await Enrollment.find(query).sort({ startedAt: -1 });
+
+		// Populate course details
+		const enrichedEnrollments = await Promise.all(
+			enrollments.map(async (enrollment) => {
+				const course = await Course.findById(enrollment.courseId);
+				// Try to find the course by slug if not found by ID
+				let courseData = course;
+				if (!courseData && enrollment.courseId) {
+					courseData = await Course.findOne({ slug: enrollment.courseId });
+				}
+				return {
+					...enrollment.toObject(),
+					courseTitle: courseData?.title || "Unknown Course",
+					courseImage: courseData?.image || null,
+					courseSlug: courseData?.slug || null,
+				};
+			}),
+		);
+
+		res.status(200).json({
+			success: true,
+			count: enrollments.length,
+			data: enrichedEnrollments,
+		});
+	} catch (error) {
+		logger.error("Get user enrollments error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch user enrollments.",
+		});
+	}
 };
 
 // Update enrollment status
-export const updateEnrollmentStatus = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { status, progress, completedLesson } = req.body;
+export const updateEnrollmentStatus = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const { id } = req.params;
+		const { status, progress, completedLesson } = req.body;
 
-    const enrollment = await Enrollment.findById(id);
-    if (!enrollment) {
-      res.status(404).json({
-        success: false,
-        message: 'Enrollment not found.',
-      });
-      return;
-    }
+		const enrollment = await Enrollment.findById(id);
+		if (!enrollment) {
+			res.status(404).json({
+				success: false,
+				message: "Enrollment not found.",
+			});
+			return;
+		}
 
-    if (status) {
-      enrollment.status = status;
-      if (status === 'completed' && !enrollment.completedAt) {
-        enrollment.completedAt = new Date();
-      }
-    }
+		if (status) {
+			enrollment.status = status;
+			if (status === "completed" && !enrollment.completedAt) {
+				enrollment.completedAt = new Date();
+			}
+		}
 
-    if (progress !== undefined) {
-      enrollment.progress = Math.min(100, Math.max(0, progress));
-    }
+		if (progress !== undefined) {
+			enrollment.progress = Math.min(100, Math.max(0, progress));
+		}
 
-    if (completedLesson) {
-      if (!enrollment.completedLessons.includes(completedLesson)) {
-        enrollment.completedLessons.push(completedLesson);
-      }
-      // Recalculate progress
-      const course = await Course.findById(enrollment.courseId);
-      if (course && course.lessons > 0) {
-        enrollment.progress = Math.min(100, Math.round((enrollment.completedLessons.length / course.lessons) * 100));
-      }
-    }
+		if (completedLesson) {
+			if (!enrollment.completedLessons.includes(completedLesson)) {
+				enrollment.completedLessons.push(completedLesson);
+			}
+			// Recalculate progress
+			const course = await Course.findById(enrollment.courseId);
+			if (course && course.lessons > 0) {
+				enrollment.progress = Math.min(
+					100,
+					Math.round(
+						(enrollment.completedLessons.length / course.lessons) * 100,
+					),
+				);
+			}
+		}
 
-    // Auto-complete if progress reaches 100%
-    if (enrollment.progress === 100 && enrollment.status !== 'completed') {
-      enrollment.status = 'completed';
-      enrollment.completedAt = new Date();
-      
-      // Generate certificate if course offers one
-      const course = await Course.findById(enrollment.courseId);
-      if (course && course.completionCertificate) {
-        const certificateId = `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-        
-        await Certificate.create({
-          userId: enrollment.userId,
-          userEmail: enrollment.userEmail,
-          userName: enrollment.userName || 'Student',
-          courseId: course._id.toString(),
-          courseTitle: course.title,
-          certificateId,
-          completionDate: new Date(),
-          certificateUrl: `/certificates/${certificateId}`,
-          issued: true,
-          issuedAt: new Date(),
-        });
-        
-        enrollment.certificateIssued = true;
-      }
-    }
+		// Auto-complete if progress reaches 100%
+		if (enrollment.progress === 100 && enrollment.status !== "completed") {
+			enrollment.status = "completed";
+			enrollment.completedAt = new Date();
 
-    enrollment.lastAccessed = new Date();
-    await enrollment.save();
+			// Generate certificate if course offers one
+			const course = await Course.findById(enrollment.courseId);
+			if (course && course.completionCertificate) {
+				const certificateId = `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
-    // Log activity
-    await ActivityLog.create({
-      userId: req.userId,
-      userEmail: req.user?.email,
-      action: 'UPDATE',
-      resource: 'ENROLLMENT',
-      resourceId: enrollment._id.toString(),
-      details: { 
-        status: enrollment.status, 
-        progress: enrollment.progress,
-        courseId: enrollment.courseId 
-      },
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+				await Certificate.create({
+					userId: enrollment.userId,
+					userEmail: enrollment.userEmail,
+					userName: enrollment.userName || "Student",
+					courseId: course._id.toString(),
+					courseTitle: course.title,
+					certificateId,
+					completionDate: new Date(),
+					certificateUrl: `/certificates/${certificateId}`,
+					issued: true,
+					issuedAt: new Date(),
+				});
 
-    res.status(200).json({
-      success: true,
-      message: 'Enrollment updated successfully.',
-      data: enrollment,
-    });
-  } catch (error) {
-    logger.error('Update enrollment status error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update enrollment.',
-    });
-  }
+				enrollment.certificateIssued = true;
+			}
+		}
+
+		enrollment.lastAccessed = new Date();
+		await enrollment.save();
+
+		// Log activity
+		await ActivityLog.create({
+			userId: req.userId,
+			userEmail: req.user?.email,
+			action: "UPDATE",
+			resource: "ENROLLMENT",
+			resourceId: enrollment._id.toString(),
+			details: {
+				status: enrollment.status,
+				progress: enrollment.progress,
+				courseId: enrollment.courseId,
+			},
+			ipAddress: req.ip,
+			userAgent: req.headers["user-agent"],
+		});
+
+		res.status(200).json({
+			success: true,
+			message: "Enrollment updated successfully.",
+			data: enrollment,
+		});
+	} catch (error) {
+		logger.error("Update enrollment status error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to update enrollment.",
+		});
+	}
 };
 
 // Delete enrollment
-export const deleteEnrollment = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const enrollment = await Enrollment.findById(req.params.id);
-    if (!enrollment) {
-      res.status(404).json({
-        success: false,
-        message: 'Enrollment not found.',
-      });
-      return;
-    }
+export const deleteEnrollment = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const enrollment = await Enrollment.findById(req.params.id);
+		if (!enrollment) {
+			res.status(404).json({
+				success: false,
+				message: "Enrollment not found.",
+			});
+			return;
+		}
 
-    // Decrement students count on course
-    const course = await Course.findById(enrollment.courseId);
-    if (course && course.students > 0) {
-      course.students -= 1;
-      await course.save();
-    }
+		// Decrement students count on course
+		const course = await Course.findById(enrollment.courseId);
+		if (course && course.students > 0) {
+			course.students -= 1;
+			await course.save();
+		}
 
-    await enrollment.deleteOne();
+		await enrollment.deleteOne();
 
-    // Log activity
-    await ActivityLog.create({
-      userId: req.userId,
-      userEmail: req.user?.email,
-      action: 'DELETE',
-      resource: 'ENROLLMENT',
-      resourceId: req.params.id,
-      details: { courseId: enrollment.courseId },
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+		// Log activity
+		await ActivityLog.create({
+			userId: req.userId,
+			userEmail: req.user?.email,
+			action: "DELETE",
+			resource: "ENROLLMENT",
+			resourceId: req.params.id,
+			details: { courseId: enrollment.courseId },
+			ipAddress: req.ip,
+			userAgent: req.headers["user-agent"],
+		});
 
-    res.status(200).json({
-      success: true,
-      message: 'Enrollment deleted successfully.',
-    });
-  } catch (error) {
-    logger.error('Delete enrollment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete enrollment.',
-    });
-  }
+		res.status(200).json({
+			success: true,
+			message: "Enrollment deleted successfully.",
+		});
+	} catch (error) {
+		logger.error("Delete enrollment error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to delete enrollment.",
+		});
+	}
 };
 
 // Get enrollment statistics
-export const getEnrollmentStats = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const [totalEnrollments, activeEnrollments, completedEnrollments] = await Promise.all([
-      Enrollment.countDocuments(),
-      Enrollment.countDocuments({ status: 'active' }),
-      Enrollment.countDocuments({ status: 'completed' }),
-    ]);
+export const getEnrollmentStats = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const [totalEnrollments, activeEnrollments, completedEnrollments] =
+			await Promise.all([
+				Enrollment.countDocuments(),
+				Enrollment.countDocuments({ status: "active" }),
+				Enrollment.countDocuments({ status: "completed" }),
+			]);
 
-    // Get enrollments by course
-    const courseStats = await Enrollment.aggregate([
-      {
-        $group: {
-          _id: '$courseId',
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: { count: -1 },
-      },
-      {
-        $limit: 10,
-      },
-    ]);
+		// Get enrollments by course
+		const courseStats = await Enrollment.aggregate([
+			{
+				$group: {
+					_id: "$courseId",
+					count: { $sum: 1 },
+				},
+			},
+			{
+				$sort: { count: -1 },
+			},
+			{
+				$limit: 10,
+			},
+		]);
 
-    // Populate course titles
-    const courseStatsWithTitles = await Promise.all(
-      courseStats.map(async (stat) => {
-        const course = await Course.findById(stat._id);
-        return {
-          courseId: stat._id,
-          courseTitle: course?.title || 'Unknown Course',
-          count: stat.count,
-        };
-      })
-    );
+		// Populate course titles
+		const courseStatsWithTitles = await Promise.all(
+			courseStats.map(async (stat) => {
+				const course = await Course.findById(stat._id);
+				return {
+					courseId: stat._id,
+					courseTitle: course?.title || "Unknown Course",
+					count: stat.count,
+				};
+			}),
+		);
 
-    // Get daily enrollment trend (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+		// Get daily enrollment trend (last 30 days)
+		const thirtyDaysAgo = new Date();
+		thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const dailyTrend = await Enrollment.aggregate([
-      {
-        $match: {
-          startedAt: { $gte: thirtyDaysAgo },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$startedAt' },
-            month: { $month: '$startedAt' },
-            day: { $dayOfMonth: '$startedAt' },
-          },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 },
-      },
-    ]);
+		const dailyTrend = await Enrollment.aggregate([
+			{
+				$match: {
+					startedAt: { $gte: thirtyDaysAgo },
+				},
+			},
+			{
+				$group: {
+					_id: {
+						year: { $year: "$startedAt" },
+						month: { $month: "$startedAt" },
+						day: { $dayOfMonth: "$startedAt" },
+					},
+					count: { $sum: 1 },
+				},
+			},
+			{
+				$sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 },
+			},
+		]);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        total: totalEnrollments,
-        active: activeEnrollments,
-        completed: completedEnrollments,
-        completionRate: totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0,
-        byCourse: courseStatsWithTitles,
-        dailyTrend,
-      },
-    });
-  } catch (error) {
-    logger.error('Get enrollment stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch enrollment statistics.',
-    });
-  }
+		res.status(200).json({
+			success: true,
+			data: {
+				total: totalEnrollments,
+				active: activeEnrollments,
+				completed: completedEnrollments,
+				completionRate:
+					totalEnrollments > 0
+						? Math.round((completedEnrollments / totalEnrollments) * 100)
+						: 0,
+				byCourse: courseStatsWithTitles,
+				dailyTrend,
+			},
+		});
+	} catch (error) {
+		logger.error("Get enrollment stats error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch enrollment statistics.",
+		});
+	}
 };

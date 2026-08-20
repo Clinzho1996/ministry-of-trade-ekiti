@@ -82,6 +82,122 @@ export const getUserById = async (
 	}
 };
 
+export const getCurrentUserProfile = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const user = await User.findById(req.userId).select("-password");
+		if (!user) {
+			res.status(404).json({
+				success: false,
+				message: "User not found.",
+			});
+			return;
+		}
+
+		res.status(200).json({
+			success: true,
+			data: user,
+		});
+	} catch (error) {
+		logger.error("Get current user profile error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch user profile.",
+		});
+	}
+};
+
+// Update user - handles both self-update and admin update
+export const updateUser = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		// Check if user is updating themselves or is an admin
+		const isSelfUpdate = req.params.id === "me" || req.params.id === req.userId;
+		const isAdmin = req.user?.role === "admin";
+
+		// If not self-update and not admin, deny access
+		if (!isSelfUpdate && !isAdmin) {
+			res.status(403).json({
+				success: false,
+				message: "You do not have permission to update this user.",
+			});
+			return;
+		}
+
+		// Determine which user to update
+		const userId = isSelfUpdate ? req.userId : req.params.id;
+
+		const user = await User.findById(userId);
+		if (!user) {
+			res.status(404).json({
+				success: false,
+				message: "User not found.",
+			});
+			return;
+		}
+
+		const { firstName, lastName, phone, role, isActive, password } = req.body;
+
+		// Users can update their own basic info
+		if (firstName) user.firstName = firstName;
+		if (lastName) user.lastName = lastName;
+		if (phone) user.phone = phone;
+
+		// Only admins can update role and status
+		if (isAdmin) {
+			if (role) user.role = role;
+			if (isActive !== undefined)
+				user.isActive = isActive === "true" || isActive === true;
+		}
+
+		// Update password if provided
+		if (password) {
+			const salt = await bcrypt.genSalt(10);
+			user.password = await bcrypt.hash(password, salt);
+		}
+
+		await user.save();
+
+		// Log activity
+		await ActivityLog.create({
+			userId: req.userId,
+			userEmail: req.user?.email,
+			action: "UPDATE",
+			resource: "USER",
+			resourceId: user._id.toString(),
+			details: {
+				email: user.email,
+				updatedBy: isSelfUpdate ? "self" : "admin",
+			},
+			ipAddress: req.ip,
+			userAgent: req.headers["user-agent"],
+		});
+
+		res.status(200).json({
+			success: true,
+			message: "User updated successfully.",
+			data: {
+				id: user._id,
+				firstName: user.firstName,
+				lastName: user.lastName,
+				email: user.email,
+				phone: user.phone,
+				role: user.role,
+				isActive: user.isActive,
+			},
+		});
+	} catch (error) {
+		logger.error("Update user error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to update user.",
+		});
+	}
+};
 export const createUser = async (
 	req: AuthRequest,
 	res: Response,
@@ -139,85 +255,6 @@ export const createUser = async (
 		res.status(500).json({
 			success: false,
 			message: "Failed to create user.",
-		});
-	}
-};
-
-export const updateUser = async (
-	req: AuthRequest,
-	res: Response,
-): Promise<void> => {
-	try {
-		const user = await User.findById(req.params.id);
-		if (!user) {
-			res.status(404).json({
-				success: false,
-				message: "User not found.",
-			});
-			return;
-		}
-
-		const { firstName, lastName, email, phone, role, isActive, password } =
-			req.body;
-
-		// Check if email is being changed and is unique
-		if (email && email !== user.email) {
-			const existingUser = await User.findOne({ email });
-			if (existingUser) {
-				res.status(400).json({
-					success: false,
-					message: "Email already in use.",
-				});
-				return;
-			}
-			user.email = email;
-		}
-
-		if (firstName) user.firstName = firstName;
-		if (lastName) user.lastName = lastName;
-		if (phone) user.phone = phone;
-		if (role) user.role = role;
-		if (isActive !== undefined)
-			user.isActive = isActive === "true" || isActive === true;
-
-		// Update password if provided
-		if (password) {
-			const salt = await bcrypt.genSalt(10);
-			user.password = await bcrypt.hash(password, salt);
-		}
-
-		await user.save();
-
-		// Log activity
-		await ActivityLog.create({
-			userId: req.userId,
-			userEmail: req.user?.email,
-			action: "UPDATE",
-			resource: "USER",
-			resourceId: user._id.toString(),
-			details: { email: user.email, role: user.role },
-			ipAddress: req.ip,
-			userAgent: req.headers["user-agent"],
-		});
-
-		res.status(200).json({
-			success: true,
-			message: "User updated successfully.",
-			data: {
-				id: user._id,
-				firstName: user.firstName,
-				lastName: user.lastName,
-				email: user.email,
-				phone: user.phone,
-				role: user.role,
-				isActive: user.isActive,
-			},
-		});
-	} catch (error) {
-		logger.error("Update user error:", error);
-		res.status(500).json({
-			success: false,
-			message: "Failed to update user.",
 		});
 	}
 };
