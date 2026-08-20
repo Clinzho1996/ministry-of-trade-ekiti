@@ -136,6 +136,8 @@ const getUserEnrollments = async (req, res) => {
 };
 exports.getUserEnrollments = getUserEnrollments;
 // Update enrollment status
+// src/controllers/enrollmentController.ts
+// Update enrollment status
 const updateEnrollmentStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -145,6 +147,17 @@ const updateEnrollmentStatus = async (req, res) => {
             res.status(404).json({
                 success: false,
                 message: "Enrollment not found.",
+            });
+            return;
+        }
+        // Check if user owns this enrollment or is admin
+        const isOwner = enrollment.userId === req.userId ||
+            enrollment.userEmail === req.user?.email;
+        const isAdmin = req.user?.role === "admin" || req.user?.role === "editor";
+        if (!isOwner && !isAdmin) {
+            res.status(403).json({
+                success: false,
+                message: "You do not have permission to update this enrollment.",
             });
             return;
         }
