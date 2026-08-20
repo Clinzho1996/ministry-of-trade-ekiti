@@ -48,6 +48,9 @@ const ActivityLogSchema = new Schema<IActivityLog>(
 				"BUSINESS",
 				"UPLOAD",
 				"SETTINGS",
+				"COURSE",
+				"ENROLLMENT",
+				"CERTIFICATE",
 			],
 		},
 		resourceId: {

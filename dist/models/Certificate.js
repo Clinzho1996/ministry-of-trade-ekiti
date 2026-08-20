@@ -33,71 +33,51 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// src/models/ActivityLog.ts
+// src/models/Certificate.ts
 const mongoose_1 = __importStar(require("mongoose"));
-const ActivityLogSchema = new mongoose_1.Schema({
+const CertificateSchema = new mongoose_1.Schema({
     userId: {
         type: String,
+        required: true,
     },
     userEmail: {
         type: String,
+        required: true,
     },
-    action: {
+    userName: {
         type: String,
         required: true,
-        enum: [
-            "CREATE",
-            "READ",
-            "UPDATE",
-            "DELETE",
-            "LOGIN",
-            "LOGOUT",
-            "REGISTER",
-            "CONTACT_SUBMIT",
-        ],
     },
-    resource: {
+    courseId: {
         type: String,
         required: true,
-        enum: [
-            "USER",
-            "OPPORTUNITY",
-            "NEWS",
-            "EVENT",
-            "GALLERY",
-            "CONTACT",
-            "BUSINESS",
-            "UPLOAD",
-            "SETTINGS",
-            "COURSE",
-            "ENROLLMENT",
-            "CERTIFICATE",
-        ],
     },
-    resourceId: {
+    courseTitle: {
         type: String,
+        required: true,
     },
-    details: {
-        type: mongoose_1.Schema.Types.Mixed,
-        default: {},
-    },
-    ipAddress: {
+    certificateId: {
         type: String,
+        required: true,
+        unique: true,
     },
-    userAgent: {
-        type: String,
-    },
-    timestamp: {
+    completionDate: {
         type: Date,
-        default: Date.now,
+        required: true,
+    },
+    certificateUrl: {
+        type: String,
+        required: true,
+    },
+    issued: {
+        type: Boolean,
+        default: false,
+    },
+    issuedAt: {
+        type: Date,
     },
 }, {
     timestamps: true,
 });
-// Index for faster queries
-ActivityLogSchema.index({ timestamp: -1 });
-ActivityLogSchema.index({ userId: 1 });
-ActivityLogSchema.index({ action: 1 });
-ActivityLogSchema.index({ resource: 1 });
-exports.default = mongoose_1.default.model("ActivityLog", ActivityLogSchema);
-//# sourceMappingURL=ActivityLog.js.map
+exports.default = mongoose_1.default.model("Certificate", CertificateSchema);
+//# sourceMappingURL=Certificate.js.map

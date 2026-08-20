@@ -33,71 +33,66 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// src/models/ActivityLog.ts
+// src/models/Enrollment.ts
 const mongoose_1 = __importStar(require("mongoose"));
-const ActivityLogSchema = new mongoose_1.Schema({
+const EnrollmentSchema = new mongoose_1.Schema({
     userId: {
         type: String,
+        required: true,
     },
     userEmail: {
         type: String,
+        required: true,
     },
-    action: {
+    courseId: {
         type: String,
         required: true,
-        enum: [
-            "CREATE",
-            "READ",
-            "UPDATE",
-            "DELETE",
-            "LOGIN",
-            "LOGOUT",
-            "REGISTER",
-            "CONTACT_SUBMIT",
-        ],
     },
-    resource: {
+    progress: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+    },
+    completedLessons: {
+        type: [String],
+        default: [],
+    },
+    status: {
         type: String,
-        required: true,
-        enum: [
-            "USER",
-            "OPPORTUNITY",
-            "NEWS",
-            "EVENT",
-            "GALLERY",
-            "CONTACT",
-            "BUSINESS",
-            "UPLOAD",
-            "SETTINGS",
-            "COURSE",
-            "ENROLLMENT",
-            "CERTIFICATE",
-        ],
+        enum: ["active", "completed", "dropped"],
+        default: "active",
     },
-    resourceId: {
-        type: String,
-    },
-    details: {
-        type: mongoose_1.Schema.Types.Mixed,
-        default: {},
-    },
-    ipAddress: {
-        type: String,
-    },
-    userAgent: {
-        type: String,
-    },
-    timestamp: {
+    startedAt: {
         type: Date,
         default: Date.now,
+    },
+    completedAt: {
+        type: Date,
+    },
+    certificateIssued: {
+        type: Boolean,
+        default: false,
+    },
+    certificateUrl: {
+        type: String,
+    },
+    lastAccessed: {
+        type: Date,
+        default: Date.now,
+    },
+    rating: {
+        type: Number,
+        min: 0,
+        max: 5,
+    },
+    review: {
+        type: String,
     },
 }, {
     timestamps: true,
 });
-// Index for faster queries
-ActivityLogSchema.index({ timestamp: -1 });
-ActivityLogSchema.index({ userId: 1 });
-ActivityLogSchema.index({ action: 1 });
-ActivityLogSchema.index({ resource: 1 });
-exports.default = mongoose_1.default.model("ActivityLog", ActivityLogSchema);
-//# sourceMappingURL=ActivityLog.js.map
+// Compound index for unique enrollment
+EnrollmentSchema.index({ userId: 1, courseId: 1 }, { unique: true });
+exports.default = mongoose_1.default.model("Enrollment", EnrollmentSchema);
+//# sourceMappingURL=Enrollment.js.map

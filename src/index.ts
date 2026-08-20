@@ -13,6 +13,7 @@ import activityLogRoutes from "./routes/activityLogRoutes";
 import authRoutes from "./routes/authRoutes";
 import businessRoutes from "./routes/businessRoutes";
 import contactRoutes from "./routes/contactRoutes";
+import courseRoutes from "./routes/courseRoutes";
 import eventRoutes from "./routes/eventRoutes";
 import galleryRoutes from "./routes/galleryRoutes";
 import newsRoutes from "./routes/newsRoutes";
@@ -100,6 +101,7 @@ app.use("/api/businesses", businessRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/courses", courseRoutes);
 app.use("/api/activity-logs", activityLogRoutes);
 
 // Health check
