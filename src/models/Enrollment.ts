@@ -28,6 +28,9 @@ const EnrollmentSchema = new Schema<IEnrollment>(
 			type: String,
 			required: true,
 		},
+		userName: {
+			type: String,
+		},
 		courseId: {
 			type: String,
 			required: true,

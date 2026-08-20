@@ -5,6 +5,7 @@ import ActivityLog from "../models/ActivityLog";
 import Certificate from "../models/Certificate";
 import Course from "../models/Course";
 import Enrollment from "../models/Enrollment";
+import User from "../models/User";
 import logger from "../utils/logger";
 
 // Get all enrollments
@@ -105,8 +106,6 @@ export const getEnrollmentById = async (
 	}
 };
 
-// Get enrollments for a specific user
-// src/controllers/enrollmentController.ts
 export const getUserEnrollments = async (
 	req: AuthRequest,
 	res: Response,
@@ -119,6 +118,10 @@ export const getUserEnrollments = async (
 		const query = userId ? { userId } : { userEmail };
 
 		const enrollments = await Enrollment.find(query).sort({ startedAt: -1 });
+
+		// Get user details for name
+		const user = await User.findById(userId);
+		const userName = user ? `${user.firstName} ${user.lastName}` : "Student";
 
 		// Populate course details
 		const enrichedEnrollments = await Promise.all(
@@ -134,6 +137,7 @@ export const getUserEnrollments = async (
 					courseTitle: courseData?.title || "Unknown Course",
 					courseImage: courseData?.image || null,
 					courseSlug: courseData?.slug || null,
+					userName: userName, // Add the user's full name
 				};
 			}),
 		);

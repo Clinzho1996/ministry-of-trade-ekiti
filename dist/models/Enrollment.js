@@ -44,6 +44,9 @@ const EnrollmentSchema = new mongoose_1.Schema({
         type: String,
         required: true,
     },
+    userName: {
+        type: String,
+    },
     courseId: {
         type: String,
         required: true,

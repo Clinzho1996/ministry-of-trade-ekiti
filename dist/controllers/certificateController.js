@@ -3,11 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.revokeCertificate = exports.generateCertificate = exports.getUserCertificates = exports.downloadCertificate = exports.getCertificateById = exports.getAllCertificates = void 0;
+exports.revokeCertificate = exports.generateCertificate = exports.getCertificateById = exports.getUserCertificates = exports.downloadCertificate = exports.getAllCertificates = void 0;
 const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
 const Certificate_1 = __importDefault(require("../models/Certificate"));
 const Course_1 = __importDefault(require("../models/Course"));
 const Enrollment_1 = __importDefault(require("../models/Enrollment"));
+const User_1 = __importDefault(require("../models/User"));
 const logger_1 = __importDefault(require("../utils/logger"));
 const getAllCertificates = async (req, res) => {
     try {
@@ -50,43 +51,6 @@ const getAllCertificates = async (req, res) => {
     }
 };
 exports.getAllCertificates = getAllCertificates;
-// src/controllers/certificateController.ts
-// Get certificate by ID - Allow users to view their own
-const getCertificateById = async (req, res) => {
-    try {
-        const certificate = await Certificate_1.default.findById(req.params.id);
-        if (!certificate) {
-            res.status(404).json({
-                success: false,
-                message: "Certificate not found.",
-            });
-            return;
-        }
-        // Check if user owns this certificate or is admin
-        const isOwner = certificate.userId === req.userId ||
-            certificate.userEmail === req.user?.email;
-        const isAdmin = req.user?.role === "admin" || req.user?.role === "editor";
-        if (!isOwner && !isAdmin) {
-            res.status(403).json({
-                success: false,
-                message: "You do not have permission to view this certificate.",
-            });
-            return;
-        }
-        res.status(200).json({
-            success: true,
-            data: certificate,
-        });
-    }
-    catch (error) {
-        logger_1.default.error("Get certificate by id error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch certificate.",
-        });
-    }
-};
-exports.getCertificateById = getCertificateById;
 // Download certificate - Allow users to download their own
 const downloadCertificate = async (req, res) => {
     try {
@@ -133,10 +97,18 @@ const getUserCertificates = async (req, res) => {
         // Build query to find certificates by userId or userEmail
         const query = userId ? { userId } : { userEmail };
         const certificates = await Certificate_1.default.find(query).sort({ issuedAt: -1 });
+        // Get user details for name
+        const user = await User_1.default.findById(userId);
+        const userName = user ? `${user.firstName} ${user.lastName}` : "Student";
+        // Enrich certificates with user name
+        const enrichedCertificates = certificates.map((cert) => ({
+            ...cert.toObject(),
+            userName: userName,
+        }));
         res.status(200).json({
             success: true,
             count: certificates.length,
-            data: certificates,
+            data: enrichedCertificates,
         });
     }
     catch (error) {
@@ -148,6 +120,53 @@ const getUserCertificates = async (req, res) => {
     }
 };
 exports.getUserCertificates = getUserCertificates;
+// Get certificate by ID
+const getCertificateById = async (req, res) => {
+    try {
+        const certificate = await Certificate_1.default.findById(req.params.id);
+        if (!certificate) {
+            res.status(404).json({
+                success: false,
+                message: "Certificate not found.",
+            });
+            return;
+        }
+        // Check if user owns this certificate or is admin
+        const isOwner = certificate.userId === req.userId ||
+            certificate.userEmail === req.user?.email;
+        const isAdmin = req.user?.role === "admin" || req.user?.role === "editor";
+        if (!isOwner && !isAdmin) {
+            res.status(403).json({
+                success: false,
+                message: "You do not have permission to view this certificate.",
+            });
+            return;
+        }
+        // Get user details for name if not already set
+        let userName = certificate.userName || "Student";
+        if (certificate.userId) {
+            const user = await User_1.default.findById(certificate.userId);
+            if (user) {
+                userName = `${user.firstName} ${user.lastName}`;
+            }
+        }
+        res.status(200).json({
+            success: true,
+            data: {
+                ...certificate.toObject(),
+                userName: userName,
+            },
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Get certificate by id error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch certificate.",
+        });
+    }
+};
+exports.getCertificateById = getCertificateById;
 const generateCertificate = async (req, res) => {
     try {
         const { enrollmentId } = req.body;

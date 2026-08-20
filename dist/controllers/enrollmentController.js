@@ -8,6 +8,7 @@ const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
 const Certificate_1 = __importDefault(require("../models/Certificate"));
 const Course_1 = __importDefault(require("../models/Course"));
 const Enrollment_1 = __importDefault(require("../models/Enrollment"));
+const User_1 = __importDefault(require("../models/User"));
 const logger_1 = __importDefault(require("../utils/logger"));
 // Get all enrollments
 const getAllEnrollments = async (req, res) => {
@@ -96,8 +97,6 @@ const getEnrollmentById = async (req, res) => {
     }
 };
 exports.getEnrollmentById = getEnrollmentById;
-// Get enrollments for a specific user
-// src/controllers/enrollmentController.ts
 const getUserEnrollments = async (req, res) => {
     try {
         const userId = req.userId;
@@ -105,6 +104,9 @@ const getUserEnrollments = async (req, res) => {
         // Build query to find enrollments by userId or userEmail
         const query = userId ? { userId } : { userEmail };
         const enrollments = await Enrollment_1.default.find(query).sort({ startedAt: -1 });
+        // Get user details for name
+        const user = await User_1.default.findById(userId);
+        const userName = user ? `${user.firstName} ${user.lastName}` : "Student";
         // Populate course details
         const enrichedEnrollments = await Promise.all(enrollments.map(async (enrollment) => {
             const course = await Course_1.default.findById(enrollment.courseId);
@@ -118,6 +120,7 @@ const getUserEnrollments = async (req, res) => {
                 courseTitle: courseData?.title || "Unknown Course",
                 courseImage: courseData?.image || null,
                 courseSlug: courseData?.slug || null,
+                userName: userName, // Add the user's full name
             };
         }));
         res.status(200).json({
