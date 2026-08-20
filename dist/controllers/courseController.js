@@ -8,6 +8,7 @@ const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
 const Certificate_1 = __importDefault(require("../models/Certificate"));
 const Course_1 = __importDefault(require("../models/Course"));
 const Enrollment_1 = __importDefault(require("../models/Enrollment"));
+const User_1 = __importDefault(require("../models/User"));
 const cloudinaryUpload_1 = require("../utils/cloudinaryUpload");
 const logger_1 = __importDefault(require("../utils/logger"));
 // Helper function to convert comma-separated string to array
@@ -475,7 +476,9 @@ const enrollUser = async (req, res) => {
         const { courseId } = req.body;
         const userId = req.userId;
         const userEmail = req.user?.email;
-        const userName = `${req.user?.firstName} ${req.user?.lastName}`;
+        // Get user details for name - FIX: Fetch the user from database
+        const user = await User_1.default.findById(userId);
+        const userName = user ? `${user.firstName} ${user.lastName}` : "Student";
         // Check if already enrolled
         const existingEnrollment = await Enrollment_1.default.findOne({ userId, courseId });
         if (existingEnrollment) {
@@ -497,10 +500,14 @@ const enrollUser = async (req, res) => {
         const enrollment = await Enrollment_1.default.create({
             userId,
             userEmail,
+            userName: userName, // Store the user's full name
             courseId,
             status: "active",
             startedAt: new Date(),
             lastAccessed: new Date(),
+            progress: 0,
+            completedLessons: [],
+            certificateIssued: false,
         });
         // Increment students count
         course.students += 1;

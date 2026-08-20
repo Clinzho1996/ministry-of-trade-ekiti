@@ -5,6 +5,7 @@ import ActivityLog from "../models/ActivityLog";
 import Certificate from "../models/Certificate";
 import Course from "../models/Course";
 import Enrollment from "../models/Enrollment";
+import User from "../models/User";
 import {
 	deleteFromCloudinary,
 	uploadToCloudinary,
@@ -567,7 +568,10 @@ export const enrollUser = async (
 		const { courseId } = req.body;
 		const userId = req.userId;
 		const userEmail = req.user?.email;
-		const userName = `${req.user?.firstName} ${req.user?.lastName}`;
+
+		// Get user details for name - FIX: Fetch the user from database
+		const user = await User.findById(userId);
+		const userName = user ? `${user.firstName} ${user.lastName}` : "Student";
 
 		// Check if already enrolled
 		const existingEnrollment = await Enrollment.findOne({ userId, courseId });
@@ -592,10 +596,14 @@ export const enrollUser = async (
 		const enrollment = await Enrollment.create({
 			userId,
 			userEmail,
+			userName: userName, // Store the user's full name
 			courseId,
 			status: "active",
 			startedAt: new Date(),
 			lastAccessed: new Date(),
+			progress: 0,
+			completedLessons: [],
+			certificateIssued: false,
 		});
 
 		// Increment students count
