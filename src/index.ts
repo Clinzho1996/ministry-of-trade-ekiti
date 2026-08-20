@@ -19,9 +19,11 @@ import courseRoutes from "./routes/courseRoutes";
 import enrollmentRoutes from "./routes/enrollmentRoutes";
 import eventRoutes from "./routes/eventRoutes";
 import galleryRoutes from "./routes/galleryRoutes";
+import grievanceRoutes from "./routes/grievanceRoutes";
 import newsRoutes from "./routes/newsRoutes";
 import opportunityRoutes from "./routes/opportunityRoutes";
 import statsRoutes from "./routes/statsRoutes";
+
 import uploadRoutes from "./routes/uploadRoutes";
 import userRoutes from "./routes/userRoutes";
 
@@ -108,6 +110,7 @@ app.use("/api/courses", courseRoutes);
 app.use("/api/activity-logs", activityLogRoutes);
 app.use("/api/enrollments", enrollmentRoutes);
 app.use("/api/certificates", certificateRoutes);
+app.use("/api/grievances", grievanceRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

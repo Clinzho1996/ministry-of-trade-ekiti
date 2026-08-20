@@ -33,55 +33,77 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// src/models/ActivityLog.ts
+// src/models/Grievance.ts
 const mongoose_1 = __importStar(require("mongoose"));
-const ActivityLogSchema = new mongoose_1.Schema({
-    userId: {
-        type: String,
-    },
-    userEmail: {
-        type: String,
-    },
-    action: {
+const GrievanceSchema = new mongoose_1.Schema({
+    trackingId: {
         type: String,
         required: true,
-        enum: [
-            "CREATE",
-            "READ",
-            "UPDATE",
-            "DELETE",
-            "LOGIN",
-            "LOGOUT",
-            "REGISTER",
-            "CONTACT_SUBMIT",
+        unique: true,
+    },
+    firstName: {
+        type: String,
+        required: [true, "First name is required"],
+        trim: true,
+    },
+    lastName: {
+        type: String,
+        required: [true, "Last name is required"],
+        trim: true,
+    },
+    email: {
+        type: String,
+        required: [true, "Email is required"],
+        lowercase: true,
+        trim: true,
+        match: [
+            /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+            "Please provide a valid email address",
         ],
     },
-    resource: {
+    phone: {
         type: String,
-        required: true,
+        trim: true,
+    },
+    grievanceType: {
+        type: String,
+        required: [true, "Grievance type is required"],
         enum: [
-            "USER",
-            "OPPORTUNITY",
-            "NEWS",
-            "EVENT",
-            "GALLERY",
-            "CONTACT",
-            "BUSINESS",
-            "UPLOAD",
-            "SETTINGS",
-            "COURSE",
-            "ENROLLMENT",
-            "CERTIFICATE",
-            "BUSINESS_REGISTRATION",
-            "GRIEVANCE",
+            "service-delivery",
+            "staff-conduct",
+            "procurement",
+            "regulatory",
+            "other",
         ],
     },
-    resourceId: {
+    priority: {
+        type: String,
+        enum: ["low", "medium", "high", "urgent"],
+        default: "medium",
+    },
+    incidentDate: {
+        type: Date,
+    },
+    description: {
+        type: String,
+        required: [true, "Description is required"],
+    },
+    expectedResolution: {
         type: String,
     },
-    details: {
-        type: mongoose_1.Schema.Types.Mixed,
-        default: {},
+    status: {
+        type: String,
+        enum: ["pending", "in-review", "resolved", "rejected"],
+        default: "pending",
+    },
+    resolution: {
+        type: String,
+    },
+    resolvedBy: {
+        type: String,
+    },
+    resolvedAt: {
+        type: Date,
     },
     ipAddress: {
         type: String,
@@ -89,17 +111,13 @@ const ActivityLogSchema = new mongoose_1.Schema({
     userAgent: {
         type: String,
     },
-    timestamp: {
-        type: Date,
-        default: Date.now,
-    },
 }, {
     timestamps: true,
 });
-// Index for faster queries
-ActivityLogSchema.index({ timestamp: -1 });
-ActivityLogSchema.index({ userId: 1 });
-ActivityLogSchema.index({ action: 1 });
-ActivityLogSchema.index({ resource: 1 });
-exports.default = mongoose_1.default.model("ActivityLog", ActivityLogSchema);
-//# sourceMappingURL=ActivityLog.js.map
+// Indexes for faster queries
+GrievanceSchema.index({ trackingId: 1 });
+GrievanceSchema.index({ email: 1 });
+GrievanceSchema.index({ status: 1 });
+GrievanceSchema.index({ createdAt: -1 });
+exports.default = mongoose_1.default.model("Grievance", GrievanceSchema);
+//# sourceMappingURL=Grievance.js.map

@@ -21,6 +21,7 @@ const courseRoutes_1 = __importDefault(require("./routes/courseRoutes"));
 const enrollmentRoutes_1 = __importDefault(require("./routes/enrollmentRoutes"));
 const eventRoutes_1 = __importDefault(require("./routes/eventRoutes"));
 const galleryRoutes_1 = __importDefault(require("./routes/galleryRoutes"));
+const grievanceRoutes_1 = __importDefault(require("./routes/grievanceRoutes"));
 const newsRoutes_1 = __importDefault(require("./routes/newsRoutes"));
 const opportunityRoutes_1 = __importDefault(require("./routes/opportunityRoutes"));
 const statsRoutes_1 = __importDefault(require("./routes/statsRoutes"));
@@ -94,6 +95,7 @@ app.use("/api/courses", courseRoutes_1.default);
 app.use("/api/activity-logs", activityLogRoutes_1.default);
 app.use("/api/enrollments", enrollmentRoutes_1.default);
 app.use("/api/certificates", certificateRoutes_1.default);
+app.use("/api/grievances", grievanceRoutes_1.default);
 // Health check
 app.get("/health", (req, res) => {
     res.status(200).json({
