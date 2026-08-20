@@ -2,6 +2,7 @@ import mongoose, { Document } from "mongoose";
 export interface IEnrollment extends Document {
     userId: string;
     userEmail: string;
+    userName?: string;
     courseId: string;
     progress: number;
     completedLessons: string[];

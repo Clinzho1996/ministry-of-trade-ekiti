@@ -10,10 +10,13 @@ import { connectDatabase } from "./config/database";
 import logger from "./utils/logger";
 
 import activityLogRoutes from "./routes/activityLogRoutes";
+import certificateRoutes from "./routes/certificateRoutes";
+
 import authRoutes from "./routes/authRoutes";
 import businessRoutes from "./routes/businessRoutes";
 import contactRoutes from "./routes/contactRoutes";
 import courseRoutes from "./routes/courseRoutes";
+import enrollmentRoutes from "./routes/enrollmentRoutes";
 import eventRoutes from "./routes/eventRoutes";
 import galleryRoutes from "./routes/galleryRoutes";
 import newsRoutes from "./routes/newsRoutes";
@@ -103,6 +106,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/activity-logs", activityLogRoutes);
+app.use("/api/enrollments", enrollmentRoutes);
+app.use("/api/certificates", certificateRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

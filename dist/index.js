@@ -13,10 +13,12 @@ const cloudinary_1 = require("./config/cloudinary");
 const database_1 = require("./config/database");
 const logger_1 = __importDefault(require("./utils/logger"));
 const activityLogRoutes_1 = __importDefault(require("./routes/activityLogRoutes"));
+const certificateRoutes_1 = __importDefault(require("./routes/certificateRoutes"));
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const businessRoutes_1 = __importDefault(require("./routes/businessRoutes"));
 const contactRoutes_1 = __importDefault(require("./routes/contactRoutes"));
 const courseRoutes_1 = __importDefault(require("./routes/courseRoutes"));
+const enrollmentRoutes_1 = __importDefault(require("./routes/enrollmentRoutes"));
 const eventRoutes_1 = __importDefault(require("./routes/eventRoutes"));
 const galleryRoutes_1 = __importDefault(require("./routes/galleryRoutes"));
 const newsRoutes_1 = __importDefault(require("./routes/newsRoutes"));
@@ -90,6 +92,8 @@ app.use("/api/users", userRoutes_1.default);
 app.use("/api/stats", statsRoutes_1.default);
 app.use("/api/courses", courseRoutes_1.default);
 app.use("/api/activity-logs", activityLogRoutes_1.default);
+app.use("/api/enrollments", enrollmentRoutes_1.default);
+app.use("/api/certificates", certificateRoutes_1.default);
 // Health check
 app.get("/health", (req, res) => {
     res.status(200).json({
