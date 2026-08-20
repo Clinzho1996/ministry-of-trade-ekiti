@@ -150,6 +150,62 @@ const BusinessSchema = new mongoose_1.Schema({
         lowercase: true,
         trim: true,
     },
+    // New registration fields
+    registrationNumber: {
+        type: String,
+        unique: true,
+        sparse: true,
+    },
+    certificateIssued: {
+        type: Boolean,
+        default: false,
+    },
+    certificateUrl: {
+        type: String,
+    },
+    dateRegistered: {
+        type: Date,
+    },
+    registrationStatus: {
+        type: String,
+        enum: ["pending", "approved", "rejected", "issued"],
+        default: "pending",
+    },
+    registrationType: {
+        type: String,
+        enum: ["business", "cooperative"],
+        default: "business",
+    },
+    cooperativeMembers: {
+        type: Number,
+    },
+    cooperativeOfficers: [
+        {
+            name: { type: String, required: true },
+            position: { type: String, required: true },
+            phone: String,
+            email: String,
+        },
+    ],
+    businessStructure: {
+        type: String,
+        enum: [
+            "sole_proprietorship",
+            "partnership",
+            "limited_liability",
+            "cooperative",
+        ],
+    },
+    registrationDocuments: {
+        type: [String],
+        default: [],
+    },
+    approvedBy: {
+        type: String,
+    },
+    approvedAt: {
+        type: Date,
+    },
 }, {
     timestamps: true,
 });
@@ -161,7 +217,17 @@ BusinessSchema.pre("save", async function () {
             .replace(/[^a-zA-Z0-9]+/g, "-")
             .replace(/^-+|-+$/g, "");
     }
-    // Don't call next() - just return
+});
+// Generate registration number before saving
+BusinessSchema.pre("save", async function () {
+    if (this.isNew && !this.registrationNumber) {
+        const prefix = this.registrationType === "cooperative" ? "COOP" : "BUS";
+        const year = new Date().getFullYear();
+        const count = await mongoose_1.default
+            .model("Business")
+            .countDocuments({ registrationType: this.registrationType });
+        this.registrationNumber = `${prefix}/${year}/${String(count + 1).padStart(4, "0")}`;
+    }
 });
 exports.default = mongoose_1.default.model("Business", BusinessSchema);
 //# sourceMappingURL=Business.js.map

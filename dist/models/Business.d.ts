@@ -38,6 +38,23 @@ export interface IBusiness extends Document {
     establishedYear?: number;
     employees?: number;
     slug: string;
+    registrationNumber?: string;
+    certificateIssued: boolean;
+    certificateUrl?: string;
+    dateRegistered?: Date;
+    registrationStatus: "pending" | "approved" | "rejected" | "issued";
+    registrationType: "business" | "cooperative";
+    cooperativeMembers?: number;
+    cooperativeOfficers?: {
+        name: string;
+        position: string;
+        phone?: string;
+        email?: string;
+    }[];
+    businessStructure?: "sole_proprietorship" | "partnership" | "limited_liability" | "cooperative";
+    registrationDocuments?: string[];
+    approvedBy?: string;
+    approvedAt?: Date;
 }
 declare const _default: mongoose.Model<IBusiness, {}, {}, {}, mongoose.Document<unknown, {}, IBusiness, {}, mongoose.DefaultSchemaOptions> & IBusiness & Required<{
     _id: mongoose.Types.ObjectId;

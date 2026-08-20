@@ -40,6 +40,28 @@ export interface IBusiness extends Document {
 	establishedYear?: number;
 	employees?: number;
 	slug: string;
+	// New fields for registration portal
+	registrationNumber?: string;
+	certificateIssued: boolean;
+	certificateUrl?: string;
+	dateRegistered?: Date;
+	registrationStatus: "pending" | "approved" | "rejected" | "issued";
+	registrationType: "business" | "cooperative";
+	cooperativeMembers?: number;
+	cooperativeOfficers?: {
+		name: string;
+		position: string;
+		phone?: string;
+		email?: string;
+	}[];
+	businessStructure?:
+		| "sole_proprietorship"
+		| "partnership"
+		| "limited_liability"
+		| "cooperative";
+	registrationDocuments?: string[];
+	approvedBy?: string;
+	approvedAt?: Date;
 }
 
 const BusinessSchema = new Schema<IBusiness>(
@@ -158,6 +180,62 @@ const BusinessSchema = new Schema<IBusiness>(
 			lowercase: true,
 			trim: true,
 		},
+		// New registration fields
+		registrationNumber: {
+			type: String,
+			unique: true,
+			sparse: true,
+		},
+		certificateIssued: {
+			type: Boolean,
+			default: false,
+		},
+		certificateUrl: {
+			type: String,
+		},
+		dateRegistered: {
+			type: Date,
+		},
+		registrationStatus: {
+			type: String,
+			enum: ["pending", "approved", "rejected", "issued"],
+			default: "pending",
+		},
+		registrationType: {
+			type: String,
+			enum: ["business", "cooperative"],
+			default: "business",
+		},
+		cooperativeMembers: {
+			type: Number,
+		},
+		cooperativeOfficers: [
+			{
+				name: { type: String, required: true },
+				position: { type: String, required: true },
+				phone: String,
+				email: String,
+			},
+		],
+		businessStructure: {
+			type: String,
+			enum: [
+				"sole_proprietorship",
+				"partnership",
+				"limited_liability",
+				"cooperative",
+			],
+		},
+		registrationDocuments: {
+			type: [String],
+			default: [],
+		},
+		approvedBy: {
+			type: String,
+		},
+		approvedAt: {
+			type: Date,
+		},
 	},
 	{
 		timestamps: true,
@@ -172,7 +250,18 @@ BusinessSchema.pre<IBusiness>("save", async function (this: IBusiness) {
 			.replace(/[^a-zA-Z0-9]+/g, "-")
 			.replace(/^-+|-+$/g, "");
 	}
-	// Don't call next() - just return
+});
+
+// Generate registration number before saving
+BusinessSchema.pre<IBusiness>("save", async function (this: IBusiness) {
+	if (this.isNew && !this.registrationNumber) {
+		const prefix = this.registrationType === "cooperative" ? "COOP" : "BUS";
+		const year = new Date().getFullYear();
+		const count = await mongoose
+			.model("Business")
+			.countDocuments({ registrationType: this.registrationType });
+		this.registrationNumber = `${prefix}/${year}/${String(count + 1).padStart(4, "0")}`;
+	}
 });
 
 export default mongoose.model<IBusiness>("Business", BusinessSchema);

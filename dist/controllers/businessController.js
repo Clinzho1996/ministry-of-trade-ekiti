@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getBusinessCategories = exports.deleteBusinessImage = exports.uploadBusinessImages = exports.deleteBusiness = exports.updateBusiness = exports.createBusiness = exports.getBusiness = exports.getBusinessBySlug = exports.getBusinesses = void 0;
+exports.rejectRegistration = exports.getRegistrationsByStatus = exports.getPendingRegistrations = exports.issueCertificate = exports.approveRegistration = exports.submitRegistration = exports.getBusinessCategories = exports.deleteBusinessImage = exports.uploadBusinessImages = exports.deleteBusiness = exports.updateBusiness = exports.createBusiness = exports.getBusiness = exports.getBusinessBySlug = exports.getBusinesses = void 0;
 const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
 const Business_1 = __importDefault(require("../models/Business"));
 const cloudinaryUpload_1 = require("../utils/cloudinaryUpload");
@@ -430,4 +430,290 @@ const getBusinessCategories = async (req, res) => {
     }
 };
 exports.getBusinessCategories = getBusinessCategories;
+const submitRegistration = async (req, res) => {
+    try {
+        const { name, description, category, subCategory, location, address, phone, email, website, registrationType, cooperativeMembers, cooperativeOfficers, businessStructure, establishedYear, employees, } = req.body;
+        // Upload logo
+        let logoUrl = "";
+        let logoPublicId = "";
+        if (req.file) {
+            const uploadResult = await (0, cloudinaryUpload_1.uploadToCloudinary)(req.file.buffer, "businesses/registrations", `reg_${Date.now()}`);
+            logoUrl = uploadResult.secure_url;
+            logoPublicId = uploadResult.public_id;
+        }
+        else {
+            res.status(400).json({
+                success: false,
+                message: "Business logo is required.",
+            });
+            return;
+        }
+        // Generate slug from name
+        const slug = name
+            .toLowerCase()
+            .replace(/[^a-zA-Z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+        const business = await Business_1.default.create({
+            name,
+            description,
+            category,
+            subCategory,
+            location,
+            address,
+            phone,
+            email,
+            website,
+            logo: logoUrl,
+            logoPublicId,
+            establishedYear: establishedYear ? parseInt(establishedYear) : undefined,
+            employees: employees ? parseInt(employees) : undefined,
+            slug,
+            registrationType: registrationType || "business",
+            cooperativeMembers: cooperativeMembers
+                ? parseInt(cooperativeMembers)
+                : undefined,
+            cooperativeOfficers: cooperativeOfficers
+                ? JSON.parse(cooperativeOfficers)
+                : [],
+            businessStructure,
+            registrationStatus: "pending",
+            dateRegistered: new Date(),
+            isActive: false,
+            isVerified: false,
+        });
+        // Log activity
+        await ActivityLog_1.default.create({
+            userId: req.userId,
+            userEmail: req.user?.email,
+            action: "CREATE",
+            resource: "BUSINESS_REGISTRATION",
+            resourceId: business._id.toString(),
+            details: { name: business.name, type: business.registrationType },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"],
+        });
+        res.status(201).json({
+            success: true,
+            message: `${registrationType === "cooperative" ? "Cooperative" : "Business"} registration submitted successfully. Awaiting approval.`,
+            data: business,
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Submit registration error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to submit registration.",
+        });
+    }
+};
+exports.submitRegistration = submitRegistration;
+// New: Approve Registration
+const approveRegistration = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const business = await Business_1.default.findById(id);
+        if (!business) {
+            res.status(404).json({
+                success: false,
+                message: "Registration not found.",
+            });
+            return;
+        }
+        if (business.registrationStatus !== "pending") {
+            res.status(400).json({
+                success: false,
+                message: `Registration is already ${business.registrationStatus}.`,
+            });
+            return;
+        }
+        business.registrationStatus = "approved";
+        business.isActive = true;
+        business.isVerified = true;
+        business.approvedBy = req.user?.email || req.userId;
+        business.approvedAt = new Date();
+        await business.save();
+        // Log activity
+        await ActivityLog_1.default.create({
+            userId: req.userId,
+            userEmail: req.user?.email,
+            action: "UPDATE",
+            resource: "BUSINESS_REGISTRATION",
+            resourceId: business._id.toString(),
+            details: { name: business.name, status: "approved" },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"],
+        });
+        res.status(200).json({
+            success: true,
+            message: "Registration approved successfully.",
+            data: business,
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Approve registration error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to approve registration.",
+        });
+    }
+};
+exports.approveRegistration = approveRegistration;
+// New: Issue Certificate
+const issueCertificate = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const business = await Business_1.default.findById(id);
+        if (!business) {
+            res.status(404).json({
+                success: false,
+                message: "Registration not found.",
+            });
+            return;
+        }
+        if (business.registrationStatus !== "approved") {
+            res.status(400).json({
+                success: false,
+                message: "Registration must be approved before issuing certificate.",
+            });
+            return;
+        }
+        if (business.certificateIssued) {
+            res.status(400).json({
+                success: false,
+                message: "Certificate has already been issued.",
+            });
+            return;
+        }
+        // Generate certificate URL
+        const certificateId = `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+        const certificateUrl = `/certificates/business/${certificateId}`;
+        business.certificateIssued = true;
+        business.certificateUrl = certificateUrl;
+        business.registrationStatus = "issued";
+        await business.save();
+        // Log activity
+        await ActivityLog_1.default.create({
+            userId: req.userId,
+            userEmail: req.user?.email,
+            action: "CREATE",
+            resource: "CERTIFICATE",
+            resourceId: business._id.toString(),
+            details: { name: business.name, certificateId },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"],
+        });
+        res.status(200).json({
+            success: true,
+            message: "Certificate issued successfully.",
+            data: business,
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Issue certificate error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to issue certificate.",
+        });
+    }
+};
+exports.issueCertificate = issueCertificate;
+// New: Get Pending Registrations
+const getPendingRegistrations = async (req, res) => {
+    try {
+        const registrations = await Business_1.default.find({
+            registrationStatus: "pending",
+        }).sort({ createdAt: 1 });
+        res.status(200).json({
+            success: true,
+            count: registrations.length,
+            data: registrations,
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Get pending registrations error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch pending registrations.",
+        });
+    }
+};
+exports.getPendingRegistrations = getPendingRegistrations;
+// New: Get Registrations by Status
+const getRegistrationsByStatus = async (req, res) => {
+    try {
+        const { status } = req.params;
+        const validStatuses = ["pending", "approved", "rejected", "issued"];
+        if (!validStatuses.includes(status)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid status. Must be pending, approved, rejected, or issued.",
+            });
+            return;
+        }
+        const registrations = await Business_1.default.find({
+            registrationStatus: status,
+        }).sort({ createdAt: -1 });
+        res.status(200).json({
+            success: true,
+            count: registrations.length,
+            data: registrations,
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Get registrations by status error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch registrations.",
+        });
+    }
+};
+exports.getRegistrationsByStatus = getRegistrationsByStatus;
+// New: Reject Registration
+const rejectRegistration = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const business = await Business_1.default.findById(id);
+        if (!business) {
+            res.status(404).json({
+                success: false,
+                message: "Registration not found.",
+            });
+            return;
+        }
+        if (business.registrationStatus !== "pending") {
+            res.status(400).json({
+                success: false,
+                message: `Registration is already ${business.registrationStatus}.`,
+            });
+            return;
+        }
+        business.registrationStatus = "rejected";
+        await business.save();
+        // Log activity
+        await ActivityLog_1.default.create({
+            userId: req.userId,
+            userEmail: req.user?.email,
+            action: "UPDATE",
+            resource: "BUSINESS_REGISTRATION",
+            resourceId: business._id.toString(),
+            details: { name: business.name, status: "rejected", reason },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"],
+        });
+        res.status(200).json({
+            success: true,
+            message: "Registration rejected.",
+            data: business,
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Reject registration error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to reject registration.",
+        });
+    }
+};
+exports.rejectRegistration = rejectRegistration;
 //# sourceMappingURL=businessController.js.map

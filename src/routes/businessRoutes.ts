@@ -1,6 +1,7 @@
 // src/routes/businessRoutes.ts
 import { Router } from "express";
 import {
+	approveRegistration,
 	createBusiness,
 	deleteBusiness,
 	deleteBusinessImage,
@@ -8,6 +9,11 @@ import {
 	getBusinessBySlug,
 	getBusinessCategories,
 	getBusinesses,
+	getPendingRegistrations,
+	getRegistrationsByStatus,
+	issueCertificate,
+	rejectRegistration,
+	submitRegistration,
 	updateBusiness,
 	uploadBusinessImages,
 } from "../controllers/businessController";
@@ -16,13 +22,48 @@ import { upload } from "../middleware/upload";
 
 const router = Router();
 
-// Public rou
+// Public routes
 router.get("/", getBusinesses);
 router.get("/categories", getBusinessCategories);
 router.get("/slug/:slug", getBusinessBySlug);
 router.get("/:id", getBusiness);
 
-// Admin routes
+// Public registration submission - no auth required
+router.post("/register", upload.single("logo"), submitRegistration);
+
+// Admin routes - Registration Management
+router.get(
+	"/registrations/pending",
+	authenticate,
+	authorize("admin", "editor"),
+	getPendingRegistrations,
+);
+router.get(
+	"/registrations/:status",
+	authenticate,
+	authorize("admin", "editor"),
+	getRegistrationsByStatus,
+);
+router.put(
+	"/registrations/:id/approve",
+	authenticate,
+	authorize("admin", "editor"),
+	approveRegistration,
+);
+router.put(
+	"/registrations/:id/reject",
+	authenticate,
+	authorize("admin", "editor"),
+	rejectRegistration,
+);
+router.put(
+	"/registrations/:id/certificate",
+	authenticate,
+	authorize("admin", "editor"),
+	issueCertificate,
+);
+
+// Admin routes - Business Management
 router.post(
 	"/",
 	authenticate,

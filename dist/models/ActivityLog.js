@@ -72,6 +72,7 @@ const ActivityLogSchema = new mongoose_1.Schema({
             "COURSE",
             "ENROLLMENT",
             "CERTIFICATE",
+            "BUSINESS_REGISTRATION",
         ],
     },
     resourceId: {
