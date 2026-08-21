@@ -661,7 +661,7 @@ const issueCertificate = async (req, res) => {
         }
         // Generate certificate ID and URL
         const certificateId = `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-        const certificateUrl = `/certificates/business/${certificateId}`;
+        const certificateUrl = `https://mtiic.devclinton.org/certificates/business/${certificateId}`;
         // ⚠️ IMPORTANT: Save certificateId to the business document
         business.certificateId = certificateId; // This was missing!
         business.certificateIssued = true;
@@ -688,7 +688,7 @@ const issueCertificate = async (req, res) => {
                 name: business.name,
                 businessName: business.name,
                 certificateId: certificateId,
-                certificateUrl: `${process.env.APP_URL || "https://ministry-of-trade-ekiti.onrender.com"}${certificateUrl}`,
+                certificateUrl: certificateUrl,
             });
             await sendEmail({
                 to: business.email,
