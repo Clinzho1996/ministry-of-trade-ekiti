@@ -84,6 +84,12 @@ const BusinessSchema = new mongoose_1.Schema({
         type: String,
         required: [true, "Logo is required"],
     },
+    certificateId: {
+        type: String,
+    },
+    issuedAt: {
+        type: Date,
+    },
     logoPublicId: {
         type: String,
     },

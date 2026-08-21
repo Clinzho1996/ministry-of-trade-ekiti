@@ -15,6 +15,8 @@ export interface IBusiness extends Document {
 	logoPublicId?: string;
 	images: string[];
 	imagesPublicIds: string[];
+	certificateId?: string;
+	issuedAt?: Date;
 	isVerified: boolean;
 	isActive: boolean;
 	featured: boolean;
@@ -113,6 +115,12 @@ const BusinessSchema = new Schema<IBusiness>(
 		logo: {
 			type: String,
 			required: [true, "Logo is required"],
+		},
+		certificateId: {
+			type: String,
+		},
+		issuedAt: {
+			type: Date,
 		},
 		logoPublicId: {
 			type: String,

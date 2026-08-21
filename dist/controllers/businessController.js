@@ -632,7 +632,8 @@ const approveRegistration = async (req, res) => {
     }
 };
 exports.approveRegistration = approveRegistration;
-// Issue Certificate
+// src/controllers/businessController.ts
+// Issue Certificate - FIXED
 const issueCertificate = async (req, res) => {
     try {
         const { id } = req.params;
@@ -658,12 +659,15 @@ const issueCertificate = async (req, res) => {
             });
             return;
         }
-        // Generate certificate URL
+        // Generate certificate ID and URL
         const certificateId = `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
         const certificateUrl = `/certificates/business/${certificateId}`;
+        // ⚠️ IMPORTANT: Save certificateId to the business document
+        business.certificateId = certificateId; // This was missing!
         business.certificateIssued = true;
         business.certificateUrl = certificateUrl;
         business.registrationStatus = "issued";
+        business.issuedAt = new Date();
         await business.save();
         // Log activity
         await ActivityLog_1.default.create({
@@ -811,11 +815,14 @@ const rejectRegistration = async (req, res) => {
 };
 exports.rejectRegistration = rejectRegistration;
 // src/controllers/businessController.ts - Add this function
+// src/controllers/businessController.ts
 const getBusinessByCertificateId = async (req, res) => {
     try {
         const { certificateId } = req.params;
-        // Find business by certificateId
+        console.log("🔍 Searching for certificate ID:", certificateId);
+        // Find business by certificateId field
         const business = await Business_1.default.findOne({ certificateId });
+        console.log("📊 Found business:", business ? business.name : "None");
         if (!business) {
             res.status(404).json({
                 success: false,
@@ -840,13 +847,13 @@ const getBusinessByCertificateId = async (req, res) => {
                 location: business.location,
                 address: business.address,
                 registrationNumber: business.registrationNumber,
-                certificateId: `CERT-${business._id}`,
+                certificateId: business.certificateId, // Now this will have the correct value
                 certificateUrl: business.certificateUrl,
                 certificateIssued: business.certificateIssued,
                 registrationType: business.registrationType,
                 businessStructure: business.businessStructure,
                 dateRegistered: business.dateRegistered,
-                issuedAt: business.get("updatedAt"),
+                issuedAt: business.issuedAt,
                 logo: business.logo,
                 email: business.email,
                 phone: business.phone,

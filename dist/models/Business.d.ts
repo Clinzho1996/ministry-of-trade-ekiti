@@ -13,6 +13,8 @@ export interface IBusiness extends Document {
     logoPublicId?: string;
     images: string[];
     imagesPublicIds: string[];
+    certificateId?: string;
+    issuedAt?: Date;
     isVerified: boolean;
     isActive: boolean;
     featured: boolean;
