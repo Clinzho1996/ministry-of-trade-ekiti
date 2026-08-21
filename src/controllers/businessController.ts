@@ -958,6 +958,66 @@ export const rejectRegistration = async (
 
 // src/controllers/businessController.ts - Add this function
 
+export const getBusinessByCertificateId = async (
+	req: Request,
+	res: Response,
+): Promise<void> => {
+	try {
+		const { certificateId } = req.params;
+
+		// Find business by certificateId
+		const business = await Business.findOne({ certificateId });
+
+		if (!business) {
+			res.status(404).json({
+				success: false,
+				message: "Business not found with this certificate ID.",
+			});
+			return;
+		}
+
+		if (!business.certificateIssued) {
+			res.status(404).json({
+				success: false,
+				message: "Certificate has not been issued for this business.",
+			});
+			return;
+		}
+
+		res.status(200).json({
+			success: true,
+			data: {
+				_id: business._id,
+				name: business.name,
+				description: business.description,
+				category: business.category,
+				location: business.location,
+				address: business.address,
+				registrationNumber: business.registrationNumber,
+				certificateId: `CERT-${business._id}`,
+				certificateUrl: business.certificateUrl,
+				certificateIssued: business.certificateIssued,
+				registrationType: business.registrationType,
+				businessStructure: business.businessStructure,
+				dateRegistered: business.dateRegistered,
+				issuedAt: business.get("updatedAt"),
+				logo: business.logo,
+				email: business.email,
+				phone: business.phone,
+				website: business.website,
+			},
+		});
+	} catch (error) {
+		logger.error("Get business by certificate ID error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch business certificate.",
+		});
+	}
+};
+
+// src/controllers/businessController.ts - Add this function
+
 export const getBusinessCertificate = async (
 	req: AuthRequest,
 	res: Response,

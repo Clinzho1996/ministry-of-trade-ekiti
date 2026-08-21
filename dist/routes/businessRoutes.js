@@ -11,10 +11,11 @@ router.get("/", businessController_1.getBusinesses);
 router.get("/categories", businessController_1.getBusinessCategories);
 router.get("/slug/:slug", businessController_1.getBusinessBySlug);
 router.get("/:id", businessController_1.getBusiness);
+// Certificate routes - must come BEFORE /:id
+router.get("/certificate/:certificateId", businessController_1.getBusinessByCertificateId);
+router.get("/:id/certificate", auth_1.authenticate, businessController_1.getBusinessCertificate);
 // Public registration submission - no auth required
 router.post("/register", upload_1.upload.single("logo"), businessController_1.submitRegistration);
-// src/routes/businessRoutes.ts - Add this route
-router.get("/:id/certificate", auth_1.authenticate, businessController_1.getBusinessCertificate);
 // Admin routes - Registration Management
 router.get("/registrations/pending", auth_1.authenticate, (0, auth_1.authorize)("admin", "editor"), businessController_1.getPendingRegistrations);
 router.get("/registrations/:status", auth_1.authenticate, (0, auth_1.authorize)("admin", "editor"), businessController_1.getRegistrationsByStatus);

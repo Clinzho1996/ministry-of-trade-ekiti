@@ -6,6 +6,7 @@ import {
 	deleteBusiness,
 	deleteBusinessImage,
 	getBusiness,
+	getBusinessByCertificateId,
 	getBusinessBySlug,
 	getBusinessCategories,
 	getBusinessCertificate,
@@ -29,11 +30,12 @@ router.get("/categories", getBusinessCategories);
 router.get("/slug/:slug", getBusinessBySlug);
 router.get("/:id", getBusiness);
 
+// Certificate routes - must come BEFORE /:id
+router.get("/certificate/:certificateId", getBusinessByCertificateId);
+router.get("/:id/certificate", authenticate, getBusinessCertificate);
+
 // Public registration submission - no auth required
 router.post("/register", upload.single("logo"), submitRegistration);
-
-// src/routes/businessRoutes.ts - Add this route
-router.get("/:id/certificate", authenticate, getBusinessCertificate);
 
 // Admin routes - Registration Management
 router.get(
