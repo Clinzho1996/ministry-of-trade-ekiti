@@ -3,6 +3,10 @@ import { Request, Response } from "express";
 import { AuthRequest } from "../middleware/auth";
 import ActivityLog from "../models/ActivityLog";
 import Grievance from "../models/Grievance";
+import {
+	grievanceAcknowledgmentEmail,
+	sendEmail,
+} from "../services/emailService";
 import logger from "../utils/logger";
 
 // Generate unique tracking ID
@@ -77,6 +81,16 @@ export const submitGrievance = async (
 			userAgent: req.headers["user-agent"],
 		});
 
+		const emailHtml = grievanceAcknowledgmentEmail({
+			name: `${firstName} ${lastName}`,
+			trackingId: grievance.trackingId,
+			email: email,
+		});
+		await sendEmail({
+			to: email,
+			subject: "Grievance Acknowledgment",
+			html: emailHtml,
+		});
 		res.status(201).json({
 			success: true,
 			message: "Grievance submitted successfully.",
@@ -257,6 +271,9 @@ export const updateGrievanceStatus = async (
 			return;
 		}
 
+		// Store old status for comparison
+		const oldStatus = grievance.status;
+
 		// Check if status is changing to resolved or rejected, require resolution
 		if ((status === "resolved" || status === "rejected") && !resolution) {
 			res.status(400).json({
@@ -285,10 +302,86 @@ export const updateGrievanceStatus = async (
 			action: "UPDATE",
 			resource: "GRIEVANCE",
 			resourceId: grievance._id.toString(),
-			details: { trackingId: grievance.trackingId, status },
+			details: { trackingId: grievance.trackingId, status, oldStatus },
 			ipAddress: req.ip,
 			userAgent: req.headers["user-agent"],
 		});
+
+		// Send email notification based on status change
+		try {
+			const userEmail = grievance.email;
+			const userName = `${grievance.firstName} ${grievance.lastName}`;
+
+			if (status === "resolved" && resolution) {
+				// Send resolution email
+				const { grievanceResolvedEmail } =
+					await import("../services/emailService");
+				const { sendEmail } = await import("../services/emailService");
+
+				const emailHtml = grievanceResolvedEmail({
+					name: userName,
+					trackingId: grievance.trackingId,
+					resolution: resolution,
+				});
+
+				await sendEmail({
+					to: userEmail,
+					subject: `Grievance Resolved - ${grievance.trackingId}`,
+					html: emailHtml,
+				});
+
+				logger.info(
+					`✅ Resolution email sent to ${userEmail} for grievance ${grievance.trackingId}`,
+				);
+			} else if (status === "rejected" && resolution) {
+				// Send rejection email
+				const { grievanceRejectedEmail } =
+					await import("../services/emailService");
+				const { sendEmail } = await import("../services/emailService");
+
+				const emailHtml = grievanceRejectedEmail({
+					name: userName,
+					trackingId: grievance.trackingId,
+					reason: resolution,
+				});
+
+				await sendEmail({
+					to: userEmail,
+					subject: `Grievance Update - ${grievance.trackingId}`,
+					html: emailHtml,
+				});
+
+				logger.info(
+					`✅ Rejection email sent to ${userEmail} for grievance ${grievance.trackingId}`,
+				);
+			} else if (status === "in-review" && oldStatus === "pending") {
+				// Send status update email
+				const { grievanceStatusUpdateEmail } =
+					await import("../services/emailService");
+				const { sendEmail } = await import("../services/emailService");
+
+				const emailHtml = grievanceStatusUpdateEmail({
+					name: userName,
+					trackingId: grievance.trackingId,
+					status: "In Review",
+					message:
+						"Your grievance has been received and is currently under review by our team.",
+				});
+
+				await sendEmail({
+					to: userEmail,
+					subject: `Grievance Update - ${grievance.trackingId}`,
+					html: emailHtml,
+				});
+
+				logger.info(
+					`Status update email sent to ${userEmail} for grievance ${grievance.trackingId}`,
+				);
+			}
+		} catch (emailError) {
+			// Log email error but don't fail the request
+			logger.error("Failed to send email notification:", emailError);
+		}
 
 		res.status(200).json({
 			success: true,

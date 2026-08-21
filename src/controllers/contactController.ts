@@ -43,6 +43,56 @@ export const submitContact = async (
 			userAgent: req.headers["user-agent"],
 		});
 
+		// Send confirmation email to the user
+		try {
+			const { contactConfirmationEmail } = await import("../services/emailService");
+			const { sendEmail } = await import("../services/emailService");
+			
+			const emailHtml = contactConfirmationEmail({
+				name: `${firstName} ${lastName}`,
+				email: email,
+				subject: subject,
+			});
+			
+			await sendEmail({
+				to: email,
+				subject: `We've Received Your Message - ${subject}`,
+				html: emailHtml,
+			});
+			
+			logger.info(`✅ Contact confirmation email sent to ${email}`);
+		} catch (emailError) {
+			logger.error("Failed to send contact confirmation email:", emailError);
+			// Don't fail the request if email fails
+		}
+
+		// Send notification to admin (optional)
+		try {
+			const { contactAdminNotificationEmail } = await import("../services/emailService");
+			const { sendEmail } = await import("../services/emailService");
+			
+			const adminEmailHtml = contactAdminNotificationEmail({
+				name: `${firstName} ${lastName}`,
+				email: email,
+				phone: phone || "Not provided",
+				subject: subject,
+				message: message,
+			});
+			
+			// Send to admin email
+			const adminEmail = process.env.ADMIN_EMAIL || "info@ekitiinvestment.gov.ng";
+			await sendEmail({
+				to: adminEmail,
+				subject: `New Contact Form Submission: ${subject}`,
+				html: adminEmailHtml,
+			});
+			
+			logger.info(`✅ Admin notification email sent to ${adminEmail}`);
+		} catch (emailError) {
+			logger.error("Failed to send admin notification email:", emailError);
+			// Don't fail the request if email fails
+		}
+
 		res.status(201).json({
 			success: true,
 			message:

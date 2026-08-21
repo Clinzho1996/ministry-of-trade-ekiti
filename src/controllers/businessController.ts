@@ -524,6 +524,8 @@ export const getBusinessCategories = async (
 	}
 };
 
+// src/controllers/businessController.ts
+
 export const submitRegistration = async (
 	req: AuthRequest,
 	res: Response,
@@ -613,6 +615,29 @@ export const submitRegistration = async (
 			userAgent: req.headers["user-agent"],
 		});
 
+		// Send confirmation email
+		try {
+			const { businessRegistrationEmail } = await import("../services/emailService");
+			const { sendEmail } = await import("../services/emailService");
+			
+			const emailHtml = businessRegistrationEmail({
+				name: `${business.name}`,
+				businessName: business.name,
+				registrationNumber: business.registrationNumber || "Pending",
+				registrationType: business.registrationType,
+			});
+			
+			await sendEmail({
+				to: business.email || email,
+				subject: `Registration Received - ${business.registrationNumber || "Pending"}`,
+				html: emailHtml,
+			});
+			
+			logger.info(`✅ Registration confirmation email sent to ${business.email}`);
+		} catch (emailError) {
+			logger.error("Failed to send registration confirmation email:", emailError);
+		}
+
 		res.status(201).json({
 			success: true,
 			message: `${
@@ -629,7 +654,7 @@ export const submitRegistration = async (
 	}
 };
 
-// New: Approve Registration
+// Approve Registration
 export const approveRegistration = async (
 	req: AuthRequest,
 	res: Response,
@@ -674,6 +699,29 @@ export const approveRegistration = async (
 			userAgent: req.headers["user-agent"],
 		});
 
+		// Send approval email
+		try {
+			const { businessApprovedEmail } = await import("../services/emailService");
+			const { sendEmail } = await import("../services/emailService");
+			
+			const emailHtml = businessApprovedEmail({
+				name: business.name,
+				businessName: business.name,
+				registrationNumber: business.registrationNumber || "Pending",
+				registrationType: business.registrationType,
+			});
+			
+			await sendEmail({
+				to: business.email,
+				subject: `Registration Approved - ${business.registrationNumber || "Pending"}`,
+				html: emailHtml,
+			});
+			
+			logger.info(`✅ Approval email sent to ${business.email}`);
+		} catch (emailError) {
+			logger.error("Failed to send approval email:", emailError);
+		}
+
 		res.status(200).json({
 			success: true,
 			message: "Registration approved successfully.",
@@ -688,7 +736,7 @@ export const approveRegistration = async (
 	}
 };
 
-// New: Issue Certificate
+// Issue Certificate
 export const issueCertificate = async (
 	req: AuthRequest,
 	res: Response,
@@ -742,6 +790,29 @@ export const issueCertificate = async (
 			ipAddress: req.ip,
 			userAgent: req.headers["user-agent"],
 		});
+
+		// Send certificate email
+		try {
+			const { certificateIssuedEmail } = await import("../services/emailService");
+			const { sendEmail } = await import("../services/emailService");
+			
+			const emailHtml = certificateIssuedEmail({
+				name: business.name,
+				businessName: business.name,
+				certificateId: certificateId,
+				certificateUrl: `${process.env.APP_URL || 'https://ministry-of-trade-ekiti.onrender.com'}${certificateUrl}`,
+			});
+			
+			await sendEmail({
+				to: business.email,
+				subject: `Certificate Issued - ${business.registrationNumber || "Pending"}`,
+				html: emailHtml,
+			});
+			
+			logger.info(`✅ Certificate email sent to ${business.email}`);
+		} catch (emailError) {
+			logger.error("Failed to send certificate email:", emailError);
+		}
 
 		res.status(200).json({
 			success: true,

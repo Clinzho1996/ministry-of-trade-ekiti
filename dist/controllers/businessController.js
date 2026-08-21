@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -430,6 +463,7 @@ const getBusinessCategories = async (req, res) => {
     }
 };
 exports.getBusinessCategories = getBusinessCategories;
+// src/controllers/businessController.ts
 const submitRegistration = async (req, res) => {
     try {
         const { name, description, category, subCategory, location, address, phone, email, website, registrationType, cooperativeMembers, cooperativeOfficers, businessStructure, establishedYear, employees, } = req.body;
@@ -492,6 +526,26 @@ const submitRegistration = async (req, res) => {
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
         });
+        // Send confirmation email
+        try {
+            const { businessRegistrationEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+            const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+            const emailHtml = businessRegistrationEmail({
+                name: `${business.name}`,
+                businessName: business.name,
+                registrationNumber: business.registrationNumber || "Pending",
+                registrationType: business.registrationType,
+            });
+            await sendEmail({
+                to: business.email || email,
+                subject: `Registration Received - ${business.registrationNumber || "Pending"}`,
+                html: emailHtml,
+            });
+            logger_1.default.info(`✅ Registration confirmation email sent to ${business.email}`);
+        }
+        catch (emailError) {
+            logger_1.default.error("Failed to send registration confirmation email:", emailError);
+        }
         res.status(201).json({
             success: true,
             message: `${registrationType === "cooperative" ? "Cooperative" : "Business"} registration submitted successfully. Awaiting approval.`,
@@ -507,7 +561,7 @@ const submitRegistration = async (req, res) => {
     }
 };
 exports.submitRegistration = submitRegistration;
-// New: Approve Registration
+// Approve Registration
 const approveRegistration = async (req, res) => {
     try {
         const { id } = req.params;
@@ -543,6 +597,26 @@ const approveRegistration = async (req, res) => {
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
         });
+        // Send approval email
+        try {
+            const { businessApprovedEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+            const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+            const emailHtml = businessApprovedEmail({
+                name: business.name,
+                businessName: business.name,
+                registrationNumber: business.registrationNumber || "Pending",
+                registrationType: business.registrationType,
+            });
+            await sendEmail({
+                to: business.email,
+                subject: `Registration Approved - ${business.registrationNumber || "Pending"}`,
+                html: emailHtml,
+            });
+            logger_1.default.info(`✅ Approval email sent to ${business.email}`);
+        }
+        catch (emailError) {
+            logger_1.default.error("Failed to send approval email:", emailError);
+        }
         res.status(200).json({
             success: true,
             message: "Registration approved successfully.",
@@ -558,7 +632,7 @@ const approveRegistration = async (req, res) => {
     }
 };
 exports.approveRegistration = approveRegistration;
-// New: Issue Certificate
+// Issue Certificate
 const issueCertificate = async (req, res) => {
     try {
         const { id } = req.params;
@@ -602,6 +676,26 @@ const issueCertificate = async (req, res) => {
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
         });
+        // Send certificate email
+        try {
+            const { certificateIssuedEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+            const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+            const emailHtml = certificateIssuedEmail({
+                name: business.name,
+                businessName: business.name,
+                certificateId: certificateId,
+                certificateUrl: `${process.env.APP_URL || 'https://ministry-of-trade-ekiti.onrender.com'}${certificateUrl}`,
+            });
+            await sendEmail({
+                to: business.email,
+                subject: `Certificate Issued - ${business.registrationNumber || "Pending"}`,
+                html: emailHtml,
+            });
+            logger_1.default.info(`✅ Certificate email sent to ${business.email}`);
+        }
+        catch (emailError) {
+            logger_1.default.error("Failed to send certificate email:", emailError);
+        }
         res.status(200).json({
             success: true,
             message: "Certificate issued successfully.",

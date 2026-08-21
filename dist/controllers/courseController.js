@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -383,6 +416,8 @@ const updateProgress = async (req, res) => {
             });
             return;
         }
+        const previousProgress = enrollment.progress;
+        const wasCompleted = enrollment.status === "completed";
         if (progress !== undefined) {
             enrollment.progress = Math.min(100, Math.max(0, progress));
         }
@@ -396,8 +431,9 @@ const updateProgress = async (req, res) => {
                 enrollment.progress = Math.min(100, Math.round((enrollment.completedLessons.length / course.lessons) * 100));
             }
         }
-        // Check if course is completed
-        if (enrollment.progress === 100 && enrollment.status !== "completed") {
+        // Check if course is completed (progress just reached 100)
+        const isNowCompleted = enrollment.progress === 100 && enrollment.status !== "completed";
+        if (isNowCompleted) {
             enrollment.status = "completed";
             enrollment.completedAt = new Date();
             // Generate certificate if course offers one
@@ -408,6 +444,76 @@ const updateProgress = async (req, res) => {
         }
         enrollment.lastAccessed = new Date();
         await enrollment.save();
+        // Send email notification if course was just completed
+        if (isNowCompleted) {
+            try {
+                const { courseCompletionEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                // Get user details
+                const user = await User_1.default.findById(enrollment.userId);
+                const userName = user
+                    ? `${user.firstName} ${user.lastName}`
+                    : enrollment.userName || "Student";
+                // Get course details
+                const course = await Course_1.default.findById(enrollment.courseId);
+                if (course) {
+                    const certificate = await Certificate_1.default.findOne({
+                        userId: enrollment.userId,
+                        courseId: enrollment.courseId,
+                    });
+                    const certificateUrl = certificate
+                        ? `${process.env.APP_URL || "https://mtiic.devclinton.org"}${certificate.certificateUrl}`
+                        : null;
+                    const emailHtml = courseCompletionEmail({
+                        name: userName,
+                        courseTitle: course.title,
+                        certificateId: certificate?.certificateId || `CERT-${Date.now()}`,
+                        certificateUrl: certificateUrl || "#",
+                    });
+                    await sendEmail({
+                        to: enrollment.userEmail,
+                        subject: `🎉 Course Completed: ${course.title}`,
+                        html: emailHtml,
+                    });
+                    logger_1.default.info(`✅ Course completion email sent to ${enrollment.userEmail} for course ${course.title}`);
+                }
+            }
+            catch (emailError) {
+                logger_1.default.error("Failed to send course completion email:", emailError);
+                // Don't fail the request if email fails
+            }
+        }
+        else if (enrollment.progress > previousProgress &&
+            enrollment.progress % 25 === 0) {
+            // Send progress update email at 25%, 50%, 75% milestones
+            try {
+                const { courseProgressEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const user = await User_1.default.findById(enrollment.userId);
+                const userName = user
+                    ? `${user.firstName} ${user.lastName}`
+                    : enrollment.userName || "Student";
+                const course = await Course_1.default.findById(enrollment.courseId);
+                if (course) {
+                    const emailHtml = courseProgressEmail({
+                        name: userName,
+                        courseTitle: course.title,
+                        progress: enrollment.progress,
+                        courseSlug: course.slug,
+                    });
+                    await sendEmail({
+                        to: enrollment.userEmail,
+                        subject: `Course Progress: ${enrollment.progress}% - ${course.title}`,
+                        html: emailHtml,
+                    });
+                    logger_1.default.info(`Progress update email sent to ${enrollment.userEmail} at ${enrollment.progress}%`);
+                }
+            }
+            catch (emailError) {
+                logger_1.default.error("Failed to send progress update email:", emailError);
+                // Don't fail the request if email fails
+            }
+        }
         res.status(200).json({
             success: true,
             message: "Progress updated successfully.",
@@ -476,7 +582,7 @@ const enrollUser = async (req, res) => {
         const { courseId } = req.body;
         const userId = req.userId;
         const userEmail = req.user?.email;
-        // Get user details for name - FIX: Fetch the user from database
+        // Get user details for name
         const user = await User_1.default.findById(userId);
         const userName = user ? `${user.firstName} ${user.lastName}` : "Student";
         // Check if already enrolled
@@ -500,7 +606,7 @@ const enrollUser = async (req, res) => {
         const enrollment = await Enrollment_1.default.create({
             userId,
             userEmail,
-            userName: userName, // Store the user's full name
+            userName: userName,
             courseId,
             status: "active",
             startedAt: new Date(),
@@ -523,6 +629,27 @@ const enrollUser = async (req, res) => {
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
         });
+        // Send enrollment confirmation email
+        try {
+            const { courseEnrollmentEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+            const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+            const emailHtml = courseEnrollmentEmail({
+                name: userName,
+                courseTitle: course.title,
+                courseSlug: course.slug,
+                startDate: new Date().toLocaleDateString(),
+            });
+            await sendEmail({
+                to: userEmail,
+                subject: `🎓 You're Enrolled: ${course.title}`,
+                html: emailHtml,
+            });
+            logger_1.default.info(`Enrollment confirmation email sent to ${userEmail} for course ${course.title}`);
+        }
+        catch (emailError) {
+            logger_1.default.error("Failed to send enrollment confirmation email:", emailError);
+            // Don't fail the request if email fails
+        }
         res.status(201).json({
             success: true,
             message: "Successfully enrolled in course.",

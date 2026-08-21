@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -6,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getGrievanceStats = exports.deleteGrievance = exports.updateGrievanceStatus = exports.getGrievanceById = exports.getAllGrievances = exports.trackGrievance = exports.submitGrievance = void 0;
 const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
 const Grievance_1 = __importDefault(require("../models/Grievance"));
+const emailService_1 = require("../services/emailService");
 const logger_1 = __importDefault(require("../utils/logger"));
 // Generate unique tracking ID
 const generateTrackingId = () => {
@@ -58,6 +92,16 @@ const submitGrievance = async (req, res) => {
             },
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
+        });
+        const emailHtml = (0, emailService_1.grievanceAcknowledgmentEmail)({
+            name: `${firstName} ${lastName}`,
+            trackingId: grievance.trackingId,
+            email: email,
+        });
+        await (0, emailService_1.sendEmail)({
+            to: email,
+            subject: "Grievance Acknowledgment",
+            html: emailHtml,
         });
         res.status(201).json({
             success: true,
@@ -220,6 +264,8 @@ const updateGrievanceStatus = async (req, res) => {
             });
             return;
         }
+        // Store old status for comparison
+        const oldStatus = grievance.status;
         // Check if status is changing to resolved or rejected, require resolution
         if ((status === "resolved" || status === "rejected") && !resolution) {
             res.status(400).json({
@@ -244,10 +290,68 @@ const updateGrievanceStatus = async (req, res) => {
             action: "UPDATE",
             resource: "GRIEVANCE",
             resourceId: grievance._id.toString(),
-            details: { trackingId: grievance.trackingId, status },
+            details: { trackingId: grievance.trackingId, status, oldStatus },
             ipAddress: req.ip,
             userAgent: req.headers["user-agent"],
         });
+        // Send email notification based on status change
+        try {
+            const userEmail = grievance.email;
+            const userName = `${grievance.firstName} ${grievance.lastName}`;
+            if (status === "resolved" && resolution) {
+                // Send resolution email
+                const { grievanceResolvedEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const emailHtml = grievanceResolvedEmail({
+                    name: userName,
+                    trackingId: grievance.trackingId,
+                    resolution: resolution,
+                });
+                await sendEmail({
+                    to: userEmail,
+                    subject: `Grievance Resolved - ${grievance.trackingId}`,
+                    html: emailHtml,
+                });
+                logger_1.default.info(`✅ Resolution email sent to ${userEmail} for grievance ${grievance.trackingId}`);
+            }
+            else if (status === "rejected" && resolution) {
+                // Send rejection email
+                const { grievanceRejectedEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const emailHtml = grievanceRejectedEmail({
+                    name: userName,
+                    trackingId: grievance.trackingId,
+                    reason: resolution,
+                });
+                await sendEmail({
+                    to: userEmail,
+                    subject: `Grievance Update - ${grievance.trackingId}`,
+                    html: emailHtml,
+                });
+                logger_1.default.info(`✅ Rejection email sent to ${userEmail} for grievance ${grievance.trackingId}`);
+            }
+            else if (status === "in-review" && oldStatus === "pending") {
+                // Send status update email
+                const { grievanceStatusUpdateEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const { sendEmail } = await Promise.resolve().then(() => __importStar(require("../services/emailService")));
+                const emailHtml = grievanceStatusUpdateEmail({
+                    name: userName,
+                    trackingId: grievance.trackingId,
+                    status: "In Review",
+                    message: "Your grievance has been received and is currently under review by our team.",
+                });
+                await sendEmail({
+                    to: userEmail,
+                    subject: `Grievance Update - ${grievance.trackingId}`,
+                    html: emailHtml,
+                });
+                logger_1.default.info(`Status update email sent to ${userEmail} for grievance ${grievance.trackingId}`);
+            }
+        }
+        catch (emailError) {
+            // Log email error but don't fail the request
+            logger_1.default.error("Failed to send email notification:", emailError);
+        }
         res.status(200).json({
             success: true,
             message: `Grievance status updated to ${status}.`,
