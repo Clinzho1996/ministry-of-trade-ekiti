@@ -15,4 +15,5 @@ export declare const issueCertificate: (req: AuthRequest, res: Response) => Prom
 export declare const getPendingRegistrations: (req: AuthRequest, res: Response) => Promise<void>;
 export declare const getRegistrationsByStatus: (req: AuthRequest, res: Response) => Promise<void>;
 export declare const rejectRegistration: (req: AuthRequest, res: Response) => Promise<void>;
+export declare const getBusinessCertificate: (req: AuthRequest, res: Response) => Promise<void>;
 //# sourceMappingURL=businessController.d.ts.map

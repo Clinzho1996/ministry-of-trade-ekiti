@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rejectRegistration = exports.getRegistrationsByStatus = exports.getPendingRegistrations = exports.issueCertificate = exports.approveRegistration = exports.submitRegistration = exports.getBusinessCategories = exports.deleteBusinessImage = exports.uploadBusinessImages = exports.deleteBusiness = exports.updateBusiness = exports.createBusiness = exports.getBusiness = exports.getBusinessBySlug = exports.getBusinesses = void 0;
+exports.getBusinessCertificate = exports.rejectRegistration = exports.getRegistrationsByStatus = exports.getPendingRegistrations = exports.issueCertificate = exports.approveRegistration = exports.submitRegistration = exports.getBusinessCategories = exports.deleteBusinessImage = exports.uploadBusinessImages = exports.deleteBusiness = exports.updateBusiness = exports.createBusiness = exports.getBusiness = exports.getBusinessBySlug = exports.getBusinesses = void 0;
 const ActivityLog_1 = __importDefault(require("../models/ActivityLog"));
 const Business_1 = __importDefault(require("../models/Business"));
 const cloudinaryUpload_1 = require("../utils/cloudinaryUpload");
@@ -684,7 +684,7 @@ const issueCertificate = async (req, res) => {
                 name: business.name,
                 businessName: business.name,
                 certificateId: certificateId,
-                certificateUrl: `${process.env.APP_URL || 'https://ministry-of-trade-ekiti.onrender.com'}${certificateUrl}`,
+                certificateUrl: `${process.env.APP_URL || "https://ministry-of-trade-ekiti.onrender.com"}${certificateUrl}`,
             });
             await sendEmail({
                 to: business.email,
@@ -810,4 +810,51 @@ const rejectRegistration = async (req, res) => {
     }
 };
 exports.rejectRegistration = rejectRegistration;
+// src/controllers/businessController.ts - Add this function
+const getBusinessCertificate = async (req, res) => {
+    try {
+        const business = await Business_1.default.findById(req.params.id);
+        if (!business) {
+            res.status(404).json({
+                success: false,
+                message: "Business not found.",
+            });
+            return;
+        }
+        if (!business.certificateIssued) {
+            res.status(404).json({
+                success: false,
+                message: "Certificate has not been issued for this business.",
+            });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            data: {
+                _id: business._id,
+                name: business.name,
+                description: business.description,
+                category: business.category,
+                location: business.location,
+                address: business.address,
+                registrationNumber: business.registrationNumber,
+                certificateId: `CERT-${business._id}`,
+                certificateUrl: business.certificateUrl,
+                certificateIssued: business.certificateIssued,
+                registrationType: business.registrationType,
+                businessStructure: business.businessStructure,
+                dateRegistered: business.dateRegistered,
+                issuedAt: business.get("updatedAt"),
+            },
+        });
+    }
+    catch (error) {
+        logger_1.default.error("Get business certificate error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch business certificate.",
+        });
+    }
+};
+exports.getBusinessCertificate = getBusinessCertificate;
 //# sourceMappingURL=businessController.js.map

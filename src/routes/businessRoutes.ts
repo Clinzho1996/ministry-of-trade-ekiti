@@ -8,6 +8,7 @@ import {
 	getBusiness,
 	getBusinessBySlug,
 	getBusinessCategories,
+	getBusinessCertificate,
 	getBusinesses,
 	getPendingRegistrations,
 	getRegistrationsByStatus,
@@ -30,6 +31,9 @@ router.get("/:id", getBusiness);
 
 // Public registration submission - no auth required
 router.post("/register", upload.single("logo"), submitRegistration);
+
+// src/routes/businessRoutes.ts - Add this route
+router.get("/:id/certificate", authenticate, getBusinessCertificate);
 
 // Admin routes - Registration Management
 router.get(

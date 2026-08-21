@@ -13,6 +13,8 @@ router.get("/slug/:slug", businessController_1.getBusinessBySlug);
 router.get("/:id", businessController_1.getBusiness);
 // Public registration submission - no auth required
 router.post("/register", upload_1.upload.single("logo"), businessController_1.submitRegistration);
+// src/routes/businessRoutes.ts - Add this route
+router.get("/:id/certificate", auth_1.authenticate, businessController_1.getBusinessCertificate);
 // Admin routes - Registration Management
 router.get("/registrations/pending", auth_1.authenticate, (0, auth_1.authorize)("admin", "editor"), businessController_1.getPendingRegistrations);
 router.get("/registrations/:status", auth_1.authenticate, (0, auth_1.authorize)("admin", "editor"), businessController_1.getRegistrationsByStatus);

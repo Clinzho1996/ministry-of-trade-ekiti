@@ -617,25 +617,31 @@ export const submitRegistration = async (
 
 		// Send confirmation email
 		try {
-			const { businessRegistrationEmail } = await import("../services/emailService");
+			const { businessRegistrationEmail } =
+				await import("../services/emailService");
 			const { sendEmail } = await import("../services/emailService");
-			
+
 			const emailHtml = businessRegistrationEmail({
 				name: `${business.name}`,
 				businessName: business.name,
 				registrationNumber: business.registrationNumber || "Pending",
 				registrationType: business.registrationType,
 			});
-			
+
 			await sendEmail({
 				to: business.email || email,
 				subject: `Registration Received - ${business.registrationNumber || "Pending"}`,
 				html: emailHtml,
 			});
-			
-			logger.info(`✅ Registration confirmation email sent to ${business.email}`);
+
+			logger.info(
+				`✅ Registration confirmation email sent to ${business.email}`,
+			);
 		} catch (emailError) {
-			logger.error("Failed to send registration confirmation email:", emailError);
+			logger.error(
+				"Failed to send registration confirmation email:",
+				emailError,
+			);
 		}
 
 		res.status(201).json({
@@ -701,22 +707,23 @@ export const approveRegistration = async (
 
 		// Send approval email
 		try {
-			const { businessApprovedEmail } = await import("../services/emailService");
+			const { businessApprovedEmail } =
+				await import("../services/emailService");
 			const { sendEmail } = await import("../services/emailService");
-			
+
 			const emailHtml = businessApprovedEmail({
 				name: business.name,
 				businessName: business.name,
 				registrationNumber: business.registrationNumber || "Pending",
 				registrationType: business.registrationType,
 			});
-			
+
 			await sendEmail({
 				to: business.email,
 				subject: `Registration Approved - ${business.registrationNumber || "Pending"}`,
 				html: emailHtml,
 			});
-			
+
 			logger.info(`✅ Approval email sent to ${business.email}`);
 		} catch (emailError) {
 			logger.error("Failed to send approval email:", emailError);
@@ -793,22 +800,23 @@ export const issueCertificate = async (
 
 		// Send certificate email
 		try {
-			const { certificateIssuedEmail } = await import("../services/emailService");
+			const { certificateIssuedEmail } =
+				await import("../services/emailService");
 			const { sendEmail } = await import("../services/emailService");
-			
+
 			const emailHtml = certificateIssuedEmail({
 				name: business.name,
 				businessName: business.name,
 				certificateId: certificateId,
-				certificateUrl: `${process.env.APP_URL || 'https://ministry-of-trade-ekiti.onrender.com'}${certificateUrl}`,
+				certificateUrl: `${process.env.APP_URL || "https://ministry-of-trade-ekiti.onrender.com"}${certificateUrl}`,
 			});
-			
+
 			await sendEmail({
 				to: business.email,
 				subject: `Certificate Issued - ${business.registrationNumber || "Pending"}`,
 				html: emailHtml,
 			});
-			
+
 			logger.info(`✅ Certificate email sent to ${business.email}`);
 		} catch (emailError) {
 			logger.error("Failed to send certificate email:", emailError);
@@ -944,6 +952,58 @@ export const rejectRegistration = async (
 		res.status(500).json({
 			success: false,
 			message: "Failed to reject registration.",
+		});
+	}
+};
+
+// src/controllers/businessController.ts - Add this function
+
+export const getBusinessCertificate = async (
+	req: AuthRequest,
+	res: Response,
+): Promise<void> => {
+	try {
+		const business = await Business.findById(req.params.id);
+		if (!business) {
+			res.status(404).json({
+				success: false,
+				message: "Business not found.",
+			});
+			return;
+		}
+
+		if (!business.certificateIssued) {
+			res.status(404).json({
+				success: false,
+				message: "Certificate has not been issued for this business.",
+			});
+			return;
+		}
+
+		res.status(200).json({
+			success: true,
+			data: {
+				_id: business._id,
+				name: business.name,
+				description: business.description,
+				category: business.category,
+				location: business.location,
+				address: business.address,
+				registrationNumber: business.registrationNumber,
+				certificateId: `CERT-${business._id}`,
+				certificateUrl: business.certificateUrl,
+				certificateIssued: business.certificateIssued,
+				registrationType: business.registrationType,
+				businessStructure: business.businessStructure,
+				dateRegistered: business.dateRegistered,
+				issuedAt: business.get("updatedAt"),
+			},
+		});
+	} catch (error) {
+		logger.error("Get business certificate error:", error);
+		res.status(500).json({
+			success: false,
+			message: "Failed to fetch business certificate.",
 		});
 	}
 };
